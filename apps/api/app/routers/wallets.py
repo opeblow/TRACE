@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
+from app.db.store import InvestigationRecord, StoreUnavailable, get_store
 from app.schemas.schemas import WalletAnalyzeRequest
 from app.services.anomaly import RULE_VERSION, anomaly_service
 from app.services.learning import MEMORY_RULE_VERSION, active_labels, apply_memory, sort_by_priority
@@ -129,6 +130,23 @@ async def recall_for_analysis(workspace: str | None, address: str) -> tuple[str,
         return "unavailable", [], namespace_ref(namespace)
 
 
+async def save_history(workspace: str | None, result: dict, request_id: str) -> dict:
+    """Keep a record of this investigation for the workspace. Never fails the analysis."""
+    if not workspace:
+        return {"saved": False, "reason": "no_workspace"}
+    try:
+        namespace = workspace_namespace(workspace)
+    except MemoryRejected:
+        return {"saved": False, "reason": "no_workspace"}
+    store = get_store()
+    try:
+        investigation_id = await store.save_investigation(InvestigationRecord.from_analysis(namespace, result))
+    except StoreUnavailable:
+        logger.warning("investigation history not saved request_id=%s", request_id)
+        return {"saved": False, "reason": "storage_unavailable", "durable": store.durable}
+    return {"saved": True, "investigation_id": investigation_id, "durable": store.durable}
+
+
 MEMORY_MESSAGES = {
     "no_workspace": "Stateless analysis: no memory workspace was provided.",
     "not_configured": "Stateless analysis: Walrus Memory is not configured on this server.",
@@ -195,7 +213,7 @@ async def analyze_wallet(request: Request, payload: WalletAnalyzeRequest, x_trac
             partial_reasons.append("some_transactions_lack_native_sui_balance_changes")
         partial = bool(partial_reasons)
 
-        return {
+        result = {
             "wallet_id": wallet_id,
             "address": address,
             "snapshot": {
@@ -245,6 +263,8 @@ async def analyze_wallet(request: Request, payload: WalletAnalyzeRequest, x_trac
                 "stateless": {"anomalies": stateless_anomalies},
             },
         }
+        result["history"] = await save_history(x_trace_workspace, result, request_id)
+        return result
 
     finally:
         if not memory_task.done():
