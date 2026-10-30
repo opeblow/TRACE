@@ -32,6 +32,7 @@ TRANSACTION_READ_MASK = [
     "timestamp",
     "checkpoint",
     "effects.status",
+    "effects.gas_used",
     "balance_changes",
     "transaction.sender",
 ]
@@ -88,6 +89,8 @@ class TransactionRecord:
     status: str | None  # "success", "failure", or None when not reported
     sender: str | None
     balance_changes: list[BalanceChange] = field(default_factory=list)
+    # Net gas charged to the sender in MIST (computation + storage - rebate); None when not reported.
+    gas_fee_mist: int | None = None
 
 
 @dataclass(frozen=True)
@@ -116,6 +119,11 @@ def parse_transaction(executed) -> TransactionRecord | None:
     sender = None
     if executed.HasField("transaction") and executed.transaction.HasField("sender"):
         sender = executed.transaction.sender
+    gas_fee_mist = None
+    if executed.HasField("effects") and executed.effects.HasField("gas_used"):
+        gas = executed.effects.gas_used
+        if gas.HasField("computation_cost") and gas.HasField("storage_cost") and gas.HasField("storage_rebate"):
+            gas_fee_mist = int(gas.computation_cost) + int(gas.storage_cost) - int(gas.storage_rebate)
     changes = []
     for change in executed.balance_changes:
         if not (change.HasField("address") and change.HasField("coin_type") and change.HasField("amount")):
@@ -128,6 +136,7 @@ def parse_transaction(executed) -> TransactionRecord | None:
         status=status,
         sender=sender,
         balance_changes=changes,
+        gas_fee_mist=gas_fee_mist,
     )
 
 
