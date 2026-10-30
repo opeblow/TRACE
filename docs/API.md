@@ -19,7 +19,7 @@ The web app generates it randomly (192 bits) and keeps it in local storage. The 
 The response contains:
 
 - `snapshot`: native SUI balance (exact decimal string), `network` (always `mainnet`; anything else is refused with 502), `checkpoint_height`, `fetched_at`, `sources: ["tatum_sui_grpc"]`.
-- `activity.items[]`: the 50 most recent transactions touching the address, newest first. Each has `digest`, `timestamp_ms`, `checkpoint`, `status`, `direction`, `amount_sui` (exact signed decimal string, net change including gas), `transfer_amount_sui` (gas removed), `gas_fee_sui`, `activity_kind` (`transfer`, `gas_only`, `failed`, `no_sui_change`), `counterparty`, and `counterparty_label` (from memory). `activity.has_more` reports more history.
+- `activity.items[]`: up to 150 of the most recent transactions touching the address, newest first, fetched in cursor pages of 50 with no duplicates. Each has `digest`, `timestamp_ms`, `checkpoint`, `status`, `direction`, `amount_sui` (exact signed decimal string, net change including gas), `transfer_amount_sui` (gas removed), `gas_fee_sui`, `activity_kind` (`transfer`, `gas_only`, `failed`, `no_sui_change`), `counterparty`, and `counterparty_label` (from memory). `activity.has_more` reports more history.
 - `analysis`: baseline (`thin_history` below 10 samples), `anomalies[]` (memory-adjusted, highest priority first), `partial_reasons`, `rule_version`.
 - `memory`:
   - `status`: one of `used | recalled | none | unavailable | not_configured | no_workspace`.
@@ -63,7 +63,8 @@ Every analysis sent with `X-Trace-Workspace` is saved, and the response includes
 
 ## Other routes
 
-- `GET /wallets/{id}/activity`: 501. The analysis returns the 50 most recent transactions.
+- `GET /wallets/{id}/activity`: 501. The analysis itself returns up to 150 recent transactions.
+- `GET /metrics`: Prometheus text. Send `Authorization: Bearer <METRICS_TOKEN>`. Hidden (404) in production when no token is configured.
 - `GET /me`: 501. Access is scoped by workspace key.
 
 `GET /health` (also `/api/v1/health`) reports capabilities. `GET /ready` returns 200 only when configuration, the rate-limit store and (when `DATABASE_URL` is set) PostgreSQL are healthy, otherwise 503. `GET /health` reports `persistence: postgresql | process_memory`. Development falls back to a process-local rate cap; production requires Redis (or `RATE_LIMIT_STORE=memory` for a single instance) and fails closed.
