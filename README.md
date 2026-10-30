@@ -19,7 +19,7 @@ TRACE reads a wallet's recent Sui Mainnet activity through Tatum, flags statisti
 [![Tatum](https://img.shields.io/badge/data-Tatum%20Sui%20gRPC-6E3CF0)](https://docs.tatum.io/reference/rpc-sui)
 [![Walrus Memory](https://img.shields.io/badge/memory-Walrus%20Memory-1F8A70)](https://docs.wal.app/walrus-memory/python-sdk/usage/memwal)
 
-[![API tests](https://img.shields.io/badge/API%20tests-102%20passing-2EA44F)](docs/TEST_REPORT.md)
+[![API tests](https://img.shields.io/badge/API%20tests-103%20passing-2EA44F)](docs/TEST_REPORT.md)
 [![Vulnerabilities](https://img.shields.io/badge/known%20vulnerabilities-0-2EA44F)](docs/TEST_REPORT.md)
 [![Mobile](https://img.shields.io/badge/mobile-320px%2B-2EA44F)](docs/TEST_REPORT.md)
 [![Read-only](https://img.shields.io/badge/wallet%20access-read--only-17231F)](#security-and-privacy)
@@ -166,7 +166,7 @@ All secrets are server-side. The web build takes only `NEXT_PUBLIC_API_URL`.
 | `TRACE_ENV` | yes | `development`, `demo`, or `production`. Production validates everything below at startup and refuses to boot if anything is missing or unsafe. |
 | `TATUM_MAINNET_API_KEY` | yes | Tatum key (sent as `x-api-key` gRPC metadata) |
 | `TATUM_GRPC_TARGET` | no | Defaults to `sui-mainnet-grpc.gateway.tatum.io:443` |
-| `DATABASE_URL` | production (recommended) | PostgreSQL URL (`postgresql://…`; SQLAlchemy-style `postgresql+asyncpg://` is accepted). Migrations run at startup. In production an unreachable database stops startup. When unset, history is kept in process memory and lost on restart. |
+| `DATABASE_URL` | production (recommended) | PostgreSQL URL from any provider, for example Neon, Supabase or Render (`postgresql://…`; `postgresql+asyncpg://` and Neon's `channel_binding` option are accepted). Migrations run at startup. In production an unreachable database stops startup. When unset, history is kept in process memory and lost on restart. |
 | `DATABASE_POOL_MAX` | no | Connection pool size, default 5 |
 | `RATE_LIMIT_STORE` | no | `redis` (default, shared across instances) or `memory` (single-instance deployments, no Redis needed) |
 | `REDIS_URL` | when store is `redis` | Shared rate-limit store. Production fails closed if it is missing or unreachable. |
@@ -195,7 +195,7 @@ If the Render plan sleeps when idle, the first request after a quiet period can 
 
 | Component | Target | Configuration |
 |---|---|---|
-| API, Redis and PostgreSQL | Render (Blueprint) | [`render.yaml`](render.yaml) |
+| API and Redis | Render (Blueprint); add any PostgreSQL URL as `DATABASE_URL` | [`render.yaml`](render.yaml) |
 | API (any container host) | Docker | [`apps/api/Dockerfile`](apps/api/Dockerfile) |
 | Web | Vercel, Cloudflare Pages, or Netlify | [`vercel.json`](vercel.json), [`apps/web/public/_headers`](apps/web/public/_headers), [`apps/web/netlify.toml`](apps/web/netlify.toml) |
 
@@ -207,23 +207,23 @@ The full checklist is in [infra/deployment/README.md](infra/deployment/README.md
 
 ## Testing
 
-Latest full run (2026-10-30, Python 3.12, PostgreSQL 16): **103 tests collected, 102 passed, 1 skipped, 0 failed.** The skipped test calls real Tatum Mainnet and runs only with `TRACE_LIVE_TESTS=1`.
+Latest full run (2026-10-30, Python 3.12, PostgreSQL 16): **104 tests collected, 103 passed, 1 skipped, 0 failed.** The skipped test calls real Tatum Mainnet and runs only with `TRACE_LIVE_TESTS=1`.
 
 ```bash
 cd apps/api
-TRACE_ENV=development python -m pytest -q                                   # without a database: 101 passed, 2 skipped
-TRACE_TEST_DATABASE_URL=postgresql://user:pass@localhost:5432/trace_test TRACE_ENV=development python -m pytest -q                                   # with PostgreSQL: 102 passed, 1 skipped
+TRACE_ENV=development python -m pytest -q                                   # without a database: 102 passed, 2 skipped
+TRACE_TEST_DATABASE_URL=postgresql://user:pass@localhost:5432/trace_test TRACE_ENV=development python -m pytest -q                                   # with PostgreSQL: 103 passed, 1 skipped
 TRACE_ENV=development TRACE_LIVE_TESTS=1 python -m pytest -q                # also calls live Tatum Mainnet
 python scripts/memory_demo.py                                               # live Walrus learning-loop evidence
 
 npm run lint && npm run build                                               # web type-check and static build
 ```
 
-Use a disposable database for `TRACE_TEST_DATABASE_URL`: the test creates and deletes rows. CI starts a PostgreSQL 16 service, so every push runs all 102 offline tests.
+Use a disposable database for `TRACE_TEST_DATABASE_URL`: the test creates and deletes rows. CI starts a PostgreSQL 16 service, so every push runs all 103 offline tests.
 
 | File | Tests | Covers |
 |---|---|---|
-| `tests/test_api.py` | 58 | Anomaly rule v2 (gas-only exclusion, separate in/out baselines, zero-MAD floor, severity bands, confidence), activity normalization, Tatum gRPC contract against the real Sui schema, retries and redaction, address validation, exact decimals, rate limits and body caps, CORS and trusted hosts, production startup guards, live Mainnet (opt-in) |
+| `tests/test_api.py` | 59 | Anomaly rule v2 (gas-only exclusion, separate in/out baselines, zero-MAD floor, severity bands, confidence), activity normalization, Tatum gRPC contract against the real Sui schema, retries and redaction, address validation, exact decimals, rate limits and body caps, CORS and trusted hosts, production startup guards, live Mainnet (opt-in) |
 | `tests/test_memory.py` | 29 | The learning-loop acceptance test, consent, secret rejection, tampered-record rejection, workspace isolation, outage fallback, deletion |
 | `tests/test_persistence.py` | 16 | Investigation history and its workspace isolation, job ownership when the provider omits the namespace, ownership across restarts, 20 concurrent writes, duplicate recall, failed jobs, structured errors that never echo input, PostgreSQL migrations, transactions and cascades |
 
