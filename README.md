@@ -25,13 +25,25 @@ TRACE reads a wallet's recent Sui Mainnet activity through Tatum, flags statisti
 [![Mobile](https://img.shields.io/badge/mobile-320px%2B-2EA44F)](docs/TEST_REPORT.md)
 [![Read-only](https://img.shields.io/badge/wallet%20access-read--only-17231F)](#security-and-privacy)
 
-[Features](#features) · [Screenshots](#screenshots) · [Architecture](#architecture) · [Quick start](#quick-start) · [Deployment](#deployment) · [Testing](#testing) · [Security](#security-and-privacy)
+[Demo video](#demo-video) · [Features](#features) · [Screenshots](#screenshots) · [Architecture](#architecture) · [Quick start](#quick-start) · [Deployment](#deployment) · [Testing](#testing) · [Security](#security-and-privacy)
 
 <a href="https://trace-7w2.pages.dev/"><img src="docs/images/overview.png" alt="TRACE wallet overview showing Sui Mainnet provenance, balance, findings and Walrus Memory status. Click to open the live app." width="900"></a>
 
 <sub>Click the screenshot to open the live app.</sub>
 
 </div>
+
+## Demo video
+
+<div align="center">
+
+<a href="https://youtu.be/-P9e3Hp66OE"><img src="docs/images/demo-video.jpg" alt="TRACE demo video: a real Tatum Sui Mainnet analysis, a Walrus Memory write, and the memory recalled in a fresh session. Click to watch on YouTube." width="900"></a>
+
+**[Watch the TRACE demo on YouTube](https://youtu.be/-P9e3Hp66OE)** (2:54)
+
+</div>
+
+The film follows one real investigation on the live app: TRACE reads a Sui Mainnet wallet through Tatum, flags an unusual inflow with its evidence and confidence, saves the user's counterparty label to Walrus Memory, and recalls it in a new browser session, where it changes the finding's priority and cites the memory that caused it.
 
 ## Why TRACE
 
