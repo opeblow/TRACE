@@ -9,11 +9,11 @@ TRACE deploys as two independent parts: a FastAPI service with a Redis-compatibl
 1. In Render, create a **Blueprint** from this repository. It reads [`render.yaml`](../../render.yaml) and creates:
    - `trace-api`: a Python web service rooted at `apps/api`, with health check `/health`.
    - `trace-rate-limits`: a private Key Value instance wired to `REDIS_URL`.
-   - `trace-db`: a private PostgreSQL 16 database (`0.1c-256mb`) wired to `DATABASE_URL`. Tables are created by migrations on first start.
 2. Set the secrets marked `sync: false`:
    - `TATUM_MAINNET_API_KEY`
    - `WALRUS_MEMORY_PRIVATE_KEY` and `MEMWAL_ACCOUNT_ID` (leave both empty to run without memory)
    - `BACKEND_CORS_ORIGINS`: your exact web origin(s), for example `https://trace.vercel.app`
+   - `DATABASE_URL` (optional): any PostgreSQL URL, such as a free Neon or Supabase database. Tables are created by migrations on first start. If set, it must be reachable, or production refuses to start.
 3. If you use a custom API domain, add it to `ALLOWED_HOSTS`.
 4. Deploy. On startup, the API refuses to boot and lists the variable names (never their values) if any of these are true:
    - the Tatum key or Redis is missing;
