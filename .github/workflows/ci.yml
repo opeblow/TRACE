@@ -16,6 +16,20 @@ jobs:
   api:
     name: API tests and audit
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: trace
+          POSTGRES_PASSWORD: trace
+          POSTGRES_DB: trace_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U trace -d trace_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: apps/api
@@ -27,10 +41,11 @@ jobs:
           cache: pip
           cache-dependency-path: apps/api/requirements-dev.txt
       - run: pip install -r requirements-dev.txt pip-audit
-      - name: Unit, contract, security and memory tests (offline)
-        run: python -m pytest -q
+      - name: Unit, contract, security, memory and PostgreSQL tests
+        run: python -m pytest -q -rs
         env:
           TRACE_ENV: development
+          TRACE_TEST_DATABASE_URL: postgresql://trace:trace@localhost:5432/trace_test
       - name: Dependency vulnerability audit
         run: pip-audit -r requirements.txt
 
