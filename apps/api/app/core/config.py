@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     TATUM_MAINNET_API_KEY: str = ""
     TATUM_GRPC_TARGET: str = "sui-mainnet-grpc.gateway.tatum.io:443"
     REDIS_URL: str = ""
+    # "redis" (shared, multi-instance) or "memory" (single-instance deployments only)
+    RATE_LIMIT_STORE: str = Field(default="redis", pattern=r"^(redis|memory)$")
     ANALYSIS_RATE_LIMIT: int = Field(default=10, ge=1, le=1000)
     ANALYSIS_RATE_WINDOW_SECONDS: int = Field(default=60, ge=1, le=3600)
     WALRUS_MEMORY_PRIVATE_KEY: str = ""
@@ -47,8 +49,8 @@ class Settings(BaseSettings):
         problems = []
         if not self.TATUM_MAINNET_API_KEY:
             problems.append("TATUM_MAINNET_API_KEY is not set")
-        if not self.REDIS_URL:
-            problems.append("REDIS_URL is not set (shared rate limiting is required)")
+        if self.RATE_LIMIT_STORE == "redis" and not self.REDIS_URL:
+            problems.append("REDIS_URL is not set (or set RATE_LIMIT_STORE=memory for a single-instance deployment)")
         origins = self.cors_origins
         if not origins:
             problems.append("BACKEND_CORS_ORIGINS is empty")
