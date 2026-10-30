@@ -699,7 +699,66 @@ def test_fetch_wallet_requires_key_and_bounded_limit():
     with pytest.raises(TatumProviderError):
         asyncio.run(make_service(FakeChannel(), key="").fetch_wallet(VALID_ADDRESS))
     with pytest.raises(ValueError):
-        asyncio.run(make_service(FakeChannel()).fetch_wallet(VALID_ADDRESS, limit=51))
+        asyncio.run(make_service(FakeChannel()).fetch_wallet(VALID_ADDRESS, limit=201))
+
+
+class PagedChannel(FakeChannel):
+    """Serves `total` transactions newest-first in cursor pages, like Tatum's ListTransactions."""
+
+    def __init__(self, total, emit_cursor=True, overlap=False):
+        super().__init__()
+        self.total, self.emit_cursor, self.overlap = total, emit_cursor, overlap
+
+    def unary_stream(self, path, request_serializer, response_deserializer):
+        channel = self
+
+        def call(request, metadata, timeout):
+            channel.calls.append((path, dict(metadata), request))
+            start = int(request.options.before.decode()) if request.options.before else 0
+            if channel.overlap and start:
+                start -= 1  # provider repeats the boundary transaction
+            stop = min(start + request.options.limit, channel.total)
+
+            async def stream():
+                for i in range(start, stop):
+                    yield message_class("ListTransactionsResponse")(transaction=build_executed(digest=f"D{i}"))
+                if channel.emit_cursor:
+                    marker = message_class("ListTransactionsResponse")()
+                    marker.watermark.cursor = str(stop).encode()
+                    yield marker
+                end = message_class("ListTransactionsResponse")()
+                end.end.reason = 1 if stop < channel.total else 5
+                yield end
+            return stream()
+        return call
+
+
+def test_fetch_wallet_pages_with_the_provider_cursor():
+    channel = PagedChannel(total=400)
+    result = asyncio.run(make_service(channel).fetch_wallet(VALID_ADDRESS, limit=150))
+    pages = [r for p, _, r in channel.calls if p.endswith("ListTransactions")]
+    assert len(pages) == 3 and [r.options.limit for r in pages] == [50, 50, 50]
+    assert pages[0].options.before == b"" and pages[1].options.before == b"50"
+    assert [t.digest for t in result.transactions] == [f"D{i}" for i in range(150)]
+    assert result.has_more is True
+
+
+def test_fetch_wallet_stops_when_history_ends():
+    result = asyncio.run(make_service(PagedChannel(total=70)).fetch_wallet(VALID_ADDRESS, limit=150))
+    assert len(result.transactions) == 70 and result.has_more is False
+
+
+def test_fetch_wallet_never_double_counts_a_page_boundary():
+    result = asyncio.run(make_service(PagedChannel(total=400, overlap=True)).fetch_wallet(VALID_ADDRESS, limit=120))
+    digests = [t.digest for t in result.transactions]
+    assert len(digests) == len(set(digests)) == 120
+
+
+def test_fetch_wallet_without_cursor_stops_after_one_page_and_reports_more():
+    channel = PagedChannel(total=400, emit_cursor=False)
+    result = asyncio.run(make_service(channel).fetch_wallet(VALID_ADDRESS, limit=150))
+    assert len(result.transactions) == 50 and result.has_more is True
+    assert sum(1 for p, *_ in channel.calls if p.endswith("ListTransactions")) == 1
 
 
 # --- Live Mainnet integration (opt-in: TRACE_LIVE_TESTS=1) -------------------
