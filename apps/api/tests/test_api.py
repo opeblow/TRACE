@@ -409,6 +409,24 @@ def test_production_fails_closed_when_rate_limit_store_is_down():
     assert "rate-limit store is unavailable" in result.stderr
 
 
+def test_production_can_run_single_instance_without_redis():
+    code = "\n".join([
+        "from fastapi.testclient import TestClient",
+        "from app.main import app",
+        "with TestClient(app, base_url='http://api.trace.example.com') as c:",
+        "    r = c.get('/ready')",
+        "    print(r.status_code, c.get('/health').json()['capabilities']['distributed_rate_limiting'])",
+    ])
+    result = run_python(code, **{**PROD_ENV, "REDIS_URL": "", "RATE_LIMIT_STORE": "memory"})
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip().endswith("200 process_local")
+
+
+def test_production_without_redis_needs_explicit_memory_store():
+    result = run_python("from app.main import app", **{**PROD_ENV, "REDIS_URL": "", "RATE_LIMIT_STORE": "redis"})
+    assert result.returncode != 0 and "RATE_LIMIT_STORE=memory" in result.stderr
+
+
 def test_unknown_environment_is_refused():
     result = run_python("from app.main import app", TRACE_ENV="staging-typo")
     assert result.returncode != 0 and "TRACE_ENV must be set" in result.stderr
