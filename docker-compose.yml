@@ -1,0 +1,25 @@
+# Local full stack: API + Redis (shared rate limiting). The web app runs with `npm run dev`.
+#   docker compose up --build
+services:
+  api:
+    build: ./apps/api
+    env_file: ./apps/api/.env
+    environment:
+      TRACE_ENV: development
+      REDIS_URL: redis://redis:6379/0
+      BACKEND_CORS_ORIGINS: http://localhost:3000
+      ALLOWED_HOSTS: localhost,127.0.0.1
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
