@@ -6,7 +6,7 @@ Date: 2026-10-30 · Tested against: *TRACE Product Requirements Document v1.0* (
 
 | Area | Result |
 |---|---|
-| API unit, contract, security, memory, and production-config tests | **74 / 74 passed** offline, plus live Mainnet test |
+| API tests (re-run 2026-10-30 with PostgreSQL 16) | **102 passed, 1 skipped** of 103 collected (`test_api.py` 58, `test_memory.py` 29, `test_persistence.py` 16). The skipped test is the opt-in live Tatum Mainnet test. |
 | Live Tatum Sui Mainnet integration | **Passed** (opt-in test + 3 real wallets over HTTP, ~0.7 s each) |
 | **Walrus Memory learning loop (live Mainnet)** | **Passed**: 12/12 writes completed, new-session recall changed 8 findings, other workspace recalled 0 ([evidence](evidence/LEARNING_LOOP.md)) |
 | Browser end-to-end (Edge, desktop 1366px + mobile 375px) | **46 / 46 passed** against the live API |
