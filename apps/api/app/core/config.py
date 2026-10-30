@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     MEMWAL_NAMESPACE_PREFIX: str = Field(default="trace-dev", pattern=r"^[a-z0-9][a-z0-9-]{1,40}$")
     BACKEND_CORS_ORIGINS: str = "http://localhost:3000"
     ALLOWED_HOSTS: str = "localhost,127.0.0.1,testserver,*.onrender.com"
+    # Set automatically by Render to the service's public host (e.g. trace-ym2m.onrender.com).
+    RENDER_EXTERNAL_HOSTNAME: str = ""
 
     ENABLE_API_DOCS: bool = False
     LOG_FORMAT: str = Field(default="auto", pattern=r"^(auto|json|text)$")
@@ -73,7 +75,11 @@ class Settings(BaseSettings):
 
     @property
     def allowed_hosts(self) -> list[str]:
-        return [host.strip() for host in self.ALLOWED_HOSTS.split(",") if host.strip()]
+        hosts = [host.strip() for host in self.ALLOWED_HOSTS.split(",") if host.strip()]
+        render_host = self.RENDER_EXTERNAL_HOSTNAME.strip().lower()
+        if render_host and render_host not in hosts:
+            hosts.append(render_host)
+        return hosts
 
 
 settings = Settings()
