@@ -1,3 +1,4 @@
+import hmac
 import logging
 import hashlib
 import ipaddress
@@ -18,6 +19,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.config import settings
 from app.core.logging import configure_logging
+from app.core.metrics import metrics
 from app.db.store import InMemoryStore, PostgresStore, StoreUnavailable, get_store, store_holder
 from app.routers import alerts, investigations, memories, wallets
 from app.services.memory import memory_service
@@ -309,6 +311,24 @@ async def request_controls(request: Request, call_next: Any):
     return secure_response(response)
 
 
+@app.middleware("http")
+async def record_metrics(request: Request, call_next: Any):
+    """Outermost middleware: counts every response, including rate-limited and rejected ones."""
+    started = time.perf_counter()
+    status = 500
+    try:
+        response = await call_next(request)
+        status = response.status_code
+        return response
+    finally:
+        route = getattr(request.scope.get("route"), "path", None) or "unmatched"
+        prefix = settings.API_V1_STR
+        if route != "unmatched" and request.url.path.startswith(prefix + "/") and not route.startswith(prefix):
+            route = prefix + route
+        metrics.inc("trace_http_requests_total", method=request.method, route=route, status=str(status))
+        metrics.observe_latency(route, time.perf_counter() - started)
+
+
 app.include_router(wallets.router, prefix=settings.API_V1_STR, tags=["wallets"])
 app.include_router(alerts.router, prefix=settings.API_V1_STR, tags=["alerts"])
 app.include_router(memories.router, prefix=settings.API_V1_STR, tags=["memories"])
@@ -351,6 +371,23 @@ async def ready(request: Request):
         checks["database"] = isinstance(get_store(), PostgresStore) and await get_store().ping()
     ready_now = all(checks.values())
     return JSONResponse(status_code=200 if ready_now else 503, content={"ready": ready_now, "environment": settings.env, "checks": checks})
+
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics_endpoint(request: Request):
+    """Prometheus text format. Requires `Authorization: Bearer <METRICS_TOKEN>` when a token is set;
+    in production it is hidden (404) unless a token is configured."""
+    from fastapi.responses import PlainTextResponse
+
+    token = settings.METRICS_TOKEN
+    if not token:
+        if settings.is_production:
+            raise HTTPException(status_code=404, detail="Not Found")
+    else:
+        supplied = request.headers.get("authorization", "")
+        if not hmac.compare_digest(supplied.encode(), f"Bearer {token}".encode()):
+            raise HTTPException(status_code=401, detail="Metrics require a bearer token.", headers={"WWW-Authenticate": "Bearer"})
+    return PlainTextResponse(metrics.render(), media_type="text/plain; version=0.0.4")
 
 
 @app.get(f"{settings.API_V1_STR}/me")
