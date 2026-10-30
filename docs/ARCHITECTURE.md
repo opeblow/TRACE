@@ -27,7 +27,7 @@ FastAPI  ── rate limit / body cap / request IDs / security headers
      These calls retry transient errors up to 3 times with backoff and jitter, and cap responses at 4 MB with a 12 s timeout.
    - Walrus Memory recall for this workspace (8 s budget; failure → disclosed stateless analysis).
 3. Normalize with exact `Decimal` arithmetic: net SUI change per transaction, direction, and primary counterparty from balance changes.
-4. Baseline and outlier rule `amount-outlier-v1` produce evidence-linked findings. This is the **stateless** result.
+4. Baseline and outlier rule `amount-outlier-v2` (separate in/out baselines, gas-only excluded, robust z-score severity) produce evidence-linked findings. This is the **stateless** result.
 5. `learning.py` applies recalled memory and returns both results:
    - A counterparty label lowers priority one step.
    - Alert feedback sets the review state.
@@ -65,4 +65,4 @@ The schema is vendored in `apps/api/app/services/sui_rpc_v2.binpb`. Refresh it w
 
 ## Not implemented
 
-User accounts and authentication, a PostgreSQL store, server-side alert history, activity pagination, and LLM explanations. `TRACE_ENV=production` refuses startup until accounts and durable storage exist. Production rate limiting requires Redis and fails closed.
+User accounts and authentication, a PostgreSQL store, server-side alert history, activity pagination, and LLM explanations. Production rate limiting requires Redis and fails closed.
