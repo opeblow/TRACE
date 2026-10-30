@@ -87,3 +87,7 @@ logs/
 Thumbs.db
 desktop.ini
 .claude/
+
+# Playwright
+apps/web/test-results/
+apps/web/playwright-report/
