@@ -1,6 +1,6 @@
 # TRACE API contract (demo)
 
-Base prefix: `/api/v1`. OpenAPI: `GET /docs`. Every response carries `X-Request-ID`, `Cache-Control: no-store`, and security headers. Errors are `{ "detail": "<safe message>" }`; provider failures include `Reference: <request id>` and never include credentials or upstream bodies.
+Base prefix: `/api/v1`. OpenAPI: `GET /docs`. Every response carries `X-Request-ID`, `Cache-Control: no-store`, and security headers. Errors have one shape: `{ "detail": "<safe message>", "error": { "code", "message", "request_id", "retryable" } }`. Validation errors (422) add `error.fields[]` with field names and messages only; submitted values are never echoed. Provider failures include `Reference: <request id>` and never include credentials or upstream bodies.
 
 ## Memory workspace header
 
@@ -46,10 +46,24 @@ Status codes: 400 invalid address, 422 invalid body, 413 body too large, 429 rat
 
 Writes require `consent: true`. Text that looks like a secret is rejected with 422: seed phrases or 12–24-word mnemonics, `suiprivkey…`, bare 64-hex keys, PEM blocks, and "password"/"private key". Memory writes and deletes share the analysis rate limit.
 
-## Not implemented
+`DELETE /memories` responds with `index_removed: true`, `blobs_erased: false` and `chain_records_affected: false` so clients can show exactly what deletion did. Memory jobs are bound to the workspace that created them: TRACE records the owner of every job and returns 404 to any other workspace, including when the provider does not report a namespace.
 
-- `GET /alerts`: `available=false`. Findings are returned per analysis, and there is no server-side alert history.
-- `GET /wallets/{id}/activity`: 501. Pagination is not implemented.
-- `GET /me`: 501. There are no user accounts.
+## Investigation history (PostgreSQL)
 
-`GET /health` (also `/api/v1/health`) reports capabilities. `GET /ready` returns 200 only when configuration and the rate-limit store are healthy, otherwise 503. Development falls back to a process-local rate cap; production requires Redis (or `RATE_LIMIT_STORE=memory` for a single instance) and fails closed.
+Every analysis sent with `X-Trace-Workspace` is saved, and the response includes `history: {saved, investigation_id, durable}`. A storage failure never fails the analysis; it returns `saved: false, reason: "storage_unavailable"`.
+
+| Route | Purpose |
+|---|---|
+| `GET /investigations?address=&limit=` | This workspace's investigations, newest first (`limit` 1-100, default 20). Each has `investigation_id`, `address`, `created_at`, `checkpoint_height`, `balance_sui`, `activity_count`, `status`, `partial_reasons`, `rule_version`, `memory_status`, `anomaly_count`, `highest_severity`. |
+| `GET /investigations/{id}` | One investigation with its `baseline` and `findings[]`. 404 if it belongs to another workspace. |
+| `DELETE /investigations` | Body `{"confirm": "DELETE"}`. Permanently deletes this workspace's history and findings. Rate limited. |
+| `GET /alerts?limit=` | This workspace's finding history across investigations. Without a workspace header: `available: false`. |
+
+`durable` is `true` with PostgreSQL and `false` with the process-local fallback used when `DATABASE_URL` is not set.
+
+## Other routes
+
+- `GET /wallets/{id}/activity`: 501. The analysis returns the 50 most recent transactions.
+- `GET /me`: 501. Access is scoped by workspace key.
+
+`GET /health` (also `/api/v1/health`) reports capabilities. `GET /ready` returns 200 only when configuration, the rate-limit store and (when `DATABASE_URL` is set) PostgreSQL are healthy, otherwise 503. `GET /health` reports `persistence: postgresql | process_memory`. Development falls back to a process-local rate cap; production requires Redis (or `RATE_LIMIT_STORE=memory` for a single instance) and fails closed.
