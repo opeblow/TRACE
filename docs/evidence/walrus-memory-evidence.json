@@ -1,0 +1,410 @@
+{
+  "scenario": "CONTROLLED TEST SCENARIO: operator-entered labels and feedback about a real public Mainnet wallet. Chain data and memory writes are real.",
+  "generated_at": "2026-10-30T11:12:10Z",
+  "network": "mainnet",
+  "checkpoint_height": 339756201,
+  "wallet": "0x7d3fe51822d20ea780d061e17bcb7204a645ceef278b562db1ddfe5b35f9cf72",
+  "workspace_namespace_ref": "11eba7351b",
+  "walrus_relayer": "https://relayer.memory.walrus.xyz",
+  "writes_attempted": 12,
+  "writes_completed": 12,
+  "writes": [
+    {
+      "memory_type": "counterparty_label",
+      "purpose": "Label for counterparty in 2 finding(s)",
+      "submitted_at": "2026-10-30T11:11:08Z",
+      "http_status": 202,
+      "job_id": "de70f3f0-448f-4495-aedc-aa405047966f",
+      "status": "succeeded",
+      "blob_id": "gjr6YrzEN4QyWn4QS28y6FDsdjmdcc9g8awxGJV-TwY",
+      "completed_at": "2026-10-30T11:11:44Z",
+      "seconds_to_complete": 38.3
+    },
+    {
+      "memory_type": "counterparty_label",
+      "purpose": "Label for counterparty in 1 finding(s)",
+      "submitted_at": "2026-10-30T11:11:11Z",
+      "http_status": 202,
+      "job_id": "60b877b2-880f-468a-a210-cb6f64b3dcf3",
+      "status": "succeeded",
+      "blob_id": "cUuSPWXXdUgX23yquSVdzLTKLmNOXnmkwFOs20FueO0",
+      "completed_at": "2026-10-30T11:11:45Z",
+      "seconds_to_complete": 37.4
+    },
+    {
+      "memory_type": "counterparty_label",
+      "purpose": "Label for counterparty in 1 finding(s)",
+      "submitted_at": "2026-10-30T11:11:14Z",
+      "http_status": 202,
+      "job_id": "f34d7f95-8b23-4e11-88ee-467d06e08783",
+      "status": "succeeded",
+      "blob_id": "WchJkwyCUIDS2laZluaMTd-ZkWY44scxt7BrvypU3Bw",
+      "completed_at": "2026-10-30T11:11:47Z",
+      "seconds_to_complete": 36.7
+    },
+    {
+      "memory_type": "alert_feedback",
+      "purpose": "Feedback on high finding 3bLCescaqu\u2026",
+      "submitted_at": "2026-10-30T11:11:16Z",
+      "http_status": 202,
+      "job_id": "57b955de-d7fb-4494-b768-55bb0277ba30",
+      "status": "succeeded",
+      "blob_id": "95NQQ97x_4XGUPCl3NsqwQOCPqnyvjXRpEyWsRoCblM",
+      "completed_at": "2026-10-30T11:11:49Z",
+      "seconds_to_complete": 35.8
+    },
+    {
+      "memory_type": "alert_feedback",
+      "purpose": "Feedback on high finding HypmoNTcnn\u2026",
+      "submitted_at": "2026-10-30T11:11:19Z",
+      "http_status": 202,
+      "job_id": "6fa8c1c3-f612-4975-8d65-4434b6bef82b",
+      "status": "succeeded",
+      "blob_id": "V-tz0F7yXYOcScfheLO4UJ1Btkdp6-du2R8VCMhx1x0",
+      "completed_at": "2026-10-30T11:11:52Z",
+      "seconds_to_complete": 35.1
+    },
+    {
+      "memory_type": "alert_feedback",
+      "purpose": "Feedback on high finding GjhxYeztxs\u2026",
+      "submitted_at": "2026-10-30T11:11:22Z",
+      "http_status": 202,
+      "job_id": "a41503c5-bd9e-46b5-8328-703c10be7550",
+      "status": "succeeded",
+      "blob_id": "EFCgZte7tvdgHmMvxa2QCYJCgtGCmUYwkDhmp5sBmMs",
+      "completed_at": "2026-10-30T11:11:53Z",
+      "seconds_to_complete": 34.3
+    },
+    {
+      "memory_type": "alert_feedback",
+      "purpose": "Feedback on high finding HRFe4D2AM1\u2026",
+      "submitted_at": "2026-10-30T11:11:24Z",
+      "http_status": 202,
+      "job_id": "c5fc4a77-9fd9-4a73-abb6-00b51503697f",
+      "status": "succeeded",
+      "blob_id": "0K5UCru8iynNiJGivPZ_bipZPc0_4ujo7WQPxG4px0o",
+      "completed_at": "2026-10-30T11:11:55Z",
+      "seconds_to_complete": 33.4
+    },
+    {
+      "memory_type": "alert_feedback",
+      "purpose": "Feedback on high finding 2axSjTwAcT\u2026",
+      "submitted_at": "2026-10-30T11:11:27Z",
+      "http_status": 202,
+      "job_id": "bdbad771-07a9-45a6-a643-a97b0a13dcab",
+      "status": "succeeded",
+      "blob_id": "pteCurzQs25K3iO2CKk86hKRFo6mUaVdPy4IWpONP9A",
+      "completed_at": "2026-10-30T11:11:57Z",
+      "seconds_to_complete": 32.6
+    },
+    {
+      "memory_type": "alert_feedback",
+      "purpose": "Feedback on high finding G4v9WCCvkK\u2026",
+      "submitted_at": "2026-10-30T11:11:30Z",
+      "http_status": 202,
+      "job_id": "72bf1c3e-cf14-4477-b9e5-121d43320412",
+      "status": "succeeded",
+      "blob_id": "iwpuAKpI0Q_JqhTYqtUpPMGlsR3t3WwK79qfVQzuek8",
+      "completed_at": "2026-10-30T11:11:58Z",
+      "seconds_to_complete": 31.4
+    },
+    {
+      "memory_type": "alert_feedback",
+      "purpose": "Feedback on high finding AtesQk9PaQ\u2026",
+      "submitted_at": "2026-10-30T11:11:32Z",
+      "http_status": 202,
+      "job_id": "27004ea3-430d-45a9-9809-d0949ae045a3",
+      "status": "succeeded",
+      "blob_id": "bTBELtvh-NRysdKRz-q3cucu0HaJM7z7mU7ZCNRGNes",
+      "completed_at": "2026-10-30T11:12:00Z",
+      "seconds_to_complete": 30.3
+    },
+    {
+      "memory_type": "alert_feedback",
+      "purpose": "Feedback on high finding DEbgL7QQMC\u2026",
+      "submitted_at": "2026-10-30T11:11:35Z",
+      "http_status": 202,
+      "job_id": "2deb5fd0-d6a0-4c5a-ad10-7835b9733443",
+      "status": "succeeded",
+      "blob_id": "B_aO_Ca4lZfkVK8gDrirxiqXNADxzhoywKAoYTewB9M",
+      "completed_at": "2026-10-30T11:12:02Z",
+      "seconds_to_complete": 29.2
+    },
+    {
+      "memory_type": "investigation_summary",
+      "purpose": "Investigation summary from the first analysis",
+      "submitted_at": "2026-10-30T11:11:37Z",
+      "http_status": 202,
+      "job_id": "1ff7d1ce-2118-4eb5-9919-aea4b602fee5",
+      "status": "succeeded",
+      "blob_id": "A2i-I6cL07YDexVBsMryzojHqfsU7exkVToLOH-e1rY",
+      "completed_at": "2026-10-30T11:12:03Z",
+      "seconds_to_complete": 28.5
+    }
+  ],
+  "session_1": {
+    "memory_status": "none",
+    "findings": 10
+  },
+  "session_2": {
+    "memory_status": "used",
+    "recalled": 12,
+    "changed_result": true,
+    "effects": [
+      {
+        "transaction_digest": "3bLCescaqu9JAKm5YzKoAVr3tDQ2WKdptPNEk5p4u9Mi",
+        "severity_before": "high",
+        "severity_after": "low",
+        "state_after": "marked_expected",
+        "because": [
+          "counterparty_label",
+          "alert_feedback"
+        ],
+        "memory_ids": [
+          "gjr6YrzEN4QyWn4QS28y6FDsdjmdcc9g8awxGJV-TwY",
+          "95NQQ97x_4XGUPCl3NsqwQOCPqnyvjXRpEyWsRoCblM"
+        ]
+      },
+      {
+        "transaction_digest": "HypmoNTcnnaVJkitAgWFGwoypiyyNPAJrME5teKXs2fz",
+        "severity_before": "high",
+        "severity_after": "high",
+        "state_after": "needs_review",
+        "because": [
+          "alert_feedback"
+        ],
+        "memory_ids": [
+          "V-tz0F7yXYOcScfheLO4UJ1Btkdp6-du2R8VCMhx1x0"
+        ]
+      },
+      {
+        "transaction_digest": "GjhxYeztxsxtWp6PqLM8wMWY9yp9JvaxYzRvMXS61MfC",
+        "severity_before": "high",
+        "severity_after": "high",
+        "state_after": "needs_review",
+        "because": [
+          "alert_feedback"
+        ],
+        "memory_ids": [
+          "EFCgZte7tvdgHmMvxa2QCYJCgtGCmUYwkDhmp5sBmMs"
+        ]
+      },
+      {
+        "transaction_digest": "HRFe4D2AM1Mv3maqPXjCiQFSqSFvKM97bdB5qLXwndqQ",
+        "severity_before": "high",
+        "severity_after": "low",
+        "state_after": "marked_expected",
+        "because": [
+          "counterparty_label",
+          "alert_feedback"
+        ],
+        "memory_ids": [
+          "gjr6YrzEN4QyWn4QS28y6FDsdjmdcc9g8awxGJV-TwY",
+          "0K5UCru8iynNiJGivPZ_bipZPc0_4ujo7WQPxG4px0o"
+        ]
+      },
+      {
+        "transaction_digest": "2axSjTwAcT84nnR5ce7imPawwRkpreXYc4VMjTPpKcz8",
+        "severity_before": "high",
+        "severity_after": "low",
+        "state_after": "marked_expected",
+        "because": [
+          "counterparty_label",
+          "alert_feedback"
+        ],
+        "memory_ids": [
+          "cUuSPWXXdUgX23yquSVdzLTKLmNOXnmkwFOs20FueO0",
+          "pteCurzQs25K3iO2CKk86hKRFo6mUaVdPy4IWpONP9A"
+        ]
+      },
+      {
+        "transaction_digest": "G4v9WCCvkKDv4k89rgHfpeme6qi77XZxg2cCk4kzdbuD",
+        "severity_before": "high",
+        "severity_after": "low",
+        "state_after": "marked_expected",
+        "because": [
+          "counterparty_label",
+          "alert_feedback"
+        ],
+        "memory_ids": [
+          "WchJkwyCUIDS2laZluaMTd-ZkWY44scxt7BrvypU3Bw",
+          "iwpuAKpI0Q_JqhTYqtUpPMGlsR3t3WwK79qfVQzuek8"
+        ]
+      },
+      {
+        "transaction_digest": "AtesQk9PaQkinDB9XD8gvJosMCxwnk6vJh7vkeJmaktq",
+        "severity_before": "high",
+        "severity_after": "high",
+        "state_after": "needs_review",
+        "because": [
+          "alert_feedback"
+        ],
+        "memory_ids": [
+          "bTBELtvh-NRysdKRz-q3cucu0HaJM7z7mU7ZCNRGNes"
+        ]
+      },
+      {
+        "transaction_digest": "DEbgL7QQMC1XkdpAaqvGtbiMH67dnGbo2E1SLtesMbUj",
+        "severity_before": "high",
+        "severity_after": "high",
+        "state_after": "needs_review",
+        "because": [
+          "alert_feedback"
+        ],
+        "memory_ids": [
+          "B_aO_Ca4lZfkVK8gDrirxiqXNADxzhoywKAoYTewB9M"
+        ]
+      }
+    ]
+  },
+  "isolation_other_workspace_recalled": 0,
+  "before_after": [
+    {
+      "transaction_digest": "3bLCescaqu9JAKm5YzKoAVr3tDQ2WKdptPNEk5p4u9Mi",
+      "amount_sui": "16516.159733664",
+      "counterparty": "0xbe04f5bf01bdaabf4ff5eaf18d78d3a393a4c7c5740401fd49110ad119ba5369",
+      "severity_without_memory": "high",
+      "severity_with_memory": "low",
+      "state_with_memory": "marked_expected",
+      "memory_ids": [
+        "gjr6YrzEN4QyWn4QS28y6FDsdjmdcc9g8awxGJV-TwY",
+        "95NQQ97x_4XGUPCl3NsqwQOCPqnyvjXRpEyWsRoCblM"
+      ],
+      "explanation": [
+        "You labelled 0xbe04f5\u2026ba5369 as \"Exchange deposit (recurring transfers)\" on 2026-10-30. Priority lowered one step; this label is your assertion and was not independently verified.",
+        "You marked this alert as expected on 2026-10-30. Reason: Recurring transfer to my labelled counterparty"
+      ]
+    },
+    {
+      "transaction_digest": "HypmoNTcnnaVJkitAgWFGwoypiyyNPAJrME5teKXs2fz",
+      "amount_sui": "16510.622593254",
+      "counterparty": null,
+      "severity_without_memory": "high",
+      "severity_with_memory": "high",
+      "state_with_memory": "needs_review",
+      "memory_ids": [
+        "V-tz0F7yXYOcScfheLO4UJ1Btkdp6-du2R8VCMhx1x0"
+      ],
+      "explanation": [
+        "You marked this alert as needs review on 2026-10-30. Reason: Unfamiliar movement; check before the next transfer"
+      ]
+    },
+    {
+      "transaction_digest": "GjhxYeztxsxtWp6PqLM8wMWY9yp9JvaxYzRvMXS61MfC",
+      "amount_sui": "4085.438849406",
+      "counterparty": null,
+      "severity_without_memory": "high",
+      "severity_with_memory": "high",
+      "state_with_memory": "needs_review",
+      "memory_ids": [
+        "EFCgZte7tvdgHmMvxa2QCYJCgtGCmUYwkDhmp5sBmMs"
+      ],
+      "explanation": [
+        "You marked this alert as needs review on 2026-10-30. Reason: Unfamiliar movement; check before the next transfer"
+      ]
+    },
+    {
+      "transaction_digest": "HRFe4D2AM1Mv3maqPXjCiQFSqSFvKM97bdB5qLXwndqQ",
+      "amount_sui": "4084.999112296",
+      "counterparty": "0xbe04f5bf01bdaabf4ff5eaf18d78d3a393a4c7c5740401fd49110ad119ba5369",
+      "severity_without_memory": "high",
+      "severity_with_memory": "low",
+      "state_with_memory": "marked_expected",
+      "memory_ids": [
+        "gjr6YrzEN4QyWn4QS28y6FDsdjmdcc9g8awxGJV-TwY",
+        "0K5UCru8iynNiJGivPZ_bipZPc0_4ujo7WQPxG4px0o"
+      ],
+      "explanation": [
+        "You labelled 0xbe04f5\u2026ba5369 as \"Exchange deposit (recurring transfers)\" on 2026-10-30. Priority lowered one step; this label is your assertion and was not independently verified.",
+        "You marked this alert as expected on 2026-10-30. Reason: Recurring transfer to my labelled counterparty"
+      ]
+    },
+    {
+      "transaction_digest": "2axSjTwAcT84nnR5ce7imPawwRkpreXYc4VMjTPpKcz8",
+      "amount_sui": "5.001088099",
+      "counterparty": "0x20f86f9a77ff8da374202ab81e4a22c0a182e77d15f54eeedb6ecc97191ccd5d",
+      "severity_without_memory": "high",
+      "severity_with_memory": "low",
+      "state_with_memory": "marked_expected",
+      "memory_ids": [
+        "cUuSPWXXdUgX23yquSVdzLTKLmNOXnmkwFOs20FueO0",
+        "pteCurzQs25K3iO2CKk86hKRFo6mUaVdPy4IWpONP9A"
+      ],
+      "explanation": [
+        "You labelled 0x20f86f\u20261ccd5d as \"Known counterparty: OTC desk\" on 2026-10-30. Priority lowered one step; this label is your assertion and was not independently verified.",
+        "You marked this alert as expected on 2026-10-30. Reason: Recurring transfer to my labelled counterparty"
+      ]
+    },
+    {
+      "transaction_digest": "G4v9WCCvkKDv4k89rgHfpeme6qi77XZxg2cCk4kzdbuD",
+      "amount_sui": "5",
+      "counterparty": "0xdbf54af6dc18fcac907311620266537b0a9bcfc3197d28fd8dd6542e3793fac5",
+      "severity_without_memory": "high",
+      "severity_with_memory": "low",
+      "state_with_memory": "marked_expected",
+      "memory_ids": [
+        "WchJkwyCUIDS2laZluaMTd-ZkWY44scxt7BrvypU3Bw",
+        "iwpuAKpI0Q_JqhTYqtUpPMGlsR3t3WwK79qfVQzuek8"
+      ],
+      "explanation": [
+        "You labelled 0xdbf54a\u202693fac5 as \"Known counterparty: friend\" on 2026-10-30. Priority lowered one step; this label is your assertion and was not independently verified.",
+        "You marked this alert as expected on 2026-10-30. Reason: Recurring transfer to my labelled counterparty"
+      ]
+    },
+    {
+      "transaction_digest": "AtesQk9PaQkinDB9XD8gvJosMCxwnk6vJh7vkeJmaktq",
+      "amount_sui": "3.001423637",
+      "counterparty": null,
+      "severity_without_memory": "high",
+      "severity_with_memory": "high",
+      "state_with_memory": "needs_review",
+      "memory_ids": [
+        "bTBELtvh-NRysdKRz-q3cucu0HaJM7z7mU7ZCNRGNes"
+      ],
+      "explanation": [
+        "You marked this alert as needs review on 2026-10-30. Reason: Unfamiliar movement; check before the next transfer"
+      ]
+    },
+    {
+      "transaction_digest": "DEbgL7QQMC1XkdpAaqvGtbiMH67dnGbo2E1SLtesMbUj",
+      "amount_sui": "0.192388963",
+      "counterparty": null,
+      "severity_without_memory": "high",
+      "severity_with_memory": "high",
+      "state_with_memory": "needs_review",
+      "memory_ids": [
+        "B_aO_Ca4lZfkVK8gDrirxiqXNADxzhoywKAoYTewB9M"
+      ],
+      "explanation": [
+        "You marked this alert as needs review on 2026-10-30. Reason: Unfamiliar movement; check before the next transfer"
+      ]
+    },
+    {
+      "transaction_digest": "6KTz2FwjLLCKPnDTuajwR9n49Whxh178jsX56zcCRBX",
+      "amount_sui": "0.163500262",
+      "counterparty": null,
+      "severity_without_memory": "high",
+      "severity_with_memory": "high",
+      "state_with_memory": "open",
+      "memory_ids": [],
+      "explanation": []
+    },
+    {
+      "transaction_digest": "2cbhSyj3bypkpPLWrBRMs2fQjzjQJJ7dDXx7RZscfLt8",
+      "amount_sui": "0.015578692",
+      "counterparty": null,
+      "severity_without_memory": "medium",
+      "severity_with_memory": "medium",
+      "state_with_memory": "open",
+      "memory_ids": [],
+      "explanation": []
+    }
+  ],
+  "acceptance": {
+    "at_least_10_completed_mainnet_writes": true,
+    "later_session_recalled_memory": true,
+    "memory_changed_user_visible_result": true,
+    "stateless_output_shown_for_comparison": true,
+    "other_workspace_isolated": true
+  }
+}
