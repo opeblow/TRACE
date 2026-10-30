@@ -19,7 +19,7 @@ The web app generates it randomly (192 bits) and keeps it in local storage. The 
 The response contains:
 
 - `snapshot`: native SUI balance (exact decimal string), `network` (always `mainnet`; anything else is refused with 502), `checkpoint_height`, `fetched_at`, `sources: ["tatum_sui_grpc"]`.
-- `activity.items[]`: the 50 most recent transactions touching the address, newest first. Each has `digest`, `timestamp_ms`, `checkpoint`, `status`, `direction`, `amount_sui` (exact signed decimal string), `counterparty`, and `counterparty_label` (from memory). `activity.has_more` reports more history.
+- `activity.items[]`: the 50 most recent transactions touching the address, newest first. Each has `digest`, `timestamp_ms`, `checkpoint`, `status`, `direction`, `amount_sui` (exact signed decimal string, net change including gas), `transfer_amount_sui` (gas removed), `gas_fee_sui`, `activity_kind` (`transfer`, `gas_only`, `failed`, `no_sui_change`), `counterparty`, and `counterparty_label` (from memory). `activity.has_more` reports more history.
 - `analysis`: baseline (`thin_history` below 10 samples), `anomalies[]` (memory-adjusted, highest priority first), `partial_reasons`, `rule_version`.
 - `memory`:
   - `status`: one of `used | recalled | none | unavailable | not_configured | no_workspace`.
@@ -52,4 +52,4 @@ Writes require `consent: true`. Text that looks like a secret is rejected with 4
 - `GET /wallets/{id}/activity`: 501. Pagination is not implemented.
 - `GET /me`: 501. There are no user accounts.
 
-`GET /health` (also `/api/v1/health`) reports capabilities. `GET /ready` returns `production_ready=false`. Development falls back to a process-local rate cap; production requires Redis and fails closed. `TRACE_ENV=production` refuses to start until user authentication and durable storage exist.
+`GET /health` (also `/api/v1/health`) reports capabilities. `GET /ready` returns 200 only when configuration and the rate-limit store are healthy, otherwise 503. Development falls back to a process-local rate cap; production requires Redis (or `RATE_LIMIT_STORE=memory` for a single instance) and fails closed.
