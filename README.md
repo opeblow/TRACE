@@ -25,13 +25,34 @@ TRACE reads a wallet's recent Sui Mainnet activity through Tatum, flags statisti
 [![Mobile](https://img.shields.io/badge/mobile-320px%2B-2EA44F)](docs/TEST_REPORT.md)
 [![Read-only](https://img.shields.io/badge/wallet%20access-read--only-17231F)](#security-and-privacy)
 
-[Demo video](#demo-video) · [Features](#features) · [Screenshots](#screenshots) · [Architecture](#architecture) · [Quick start](#quick-start) · [Deployment](#deployment) · [Testing](#testing) · [Security](#security-and-privacy)
+**[Watch the demo](#demo-video)** &nbsp;·&nbsp; **[Try it live](https://trace-7w2.pages.dev/)** &nbsp;·&nbsp; **[How it works](#how-it-works-one-real-investigation)** &nbsp;·&nbsp; **[Tatum and Walrus](#built-on-tatum-and-walrus-memory)** &nbsp;·&nbsp; **[Run it locally](#quick-start)**
 
 <a href="https://trace-7w2.pages.dev/"><img src="docs/images/overview.png" alt="TRACE wallet overview showing Sui Mainnet provenance, balance, findings and Walrus Memory status. Click to open the live app." width="900"></a>
 
 <sub>Click the screenshot to open the live app.</sub>
 
 </div>
+
+## Table of contents
+
+1. [Demo video](#demo-video)
+2. [Why TRACE](#why-trace)
+3. [How it works: one real investigation](#how-it-works-one-real-investigation)
+4. [Built on Tatum and Walrus Memory](#built-on-tatum-and-walrus-memory)
+5. [Features](#features)
+6. [Anomaly detection](#anomaly-detection)
+7. [The learning loop](#the-learning-loop)
+8. [Screenshots](#screenshots)
+9. [Architecture](#architecture)
+10. [API reference](#api-reference)
+11. [Tech stack](#tech-stack)
+12. [Quick start](#quick-start)
+13. [Configuration](#configuration)
+14. [Deployment](#deployment)
+15. [Testing](#testing)
+16. [Security and privacy](#security-and-privacy)
+17. [Project structure](#project-structure)
+18. [Documentation](#documentation)
 
 ## Demo video
 
@@ -53,6 +74,35 @@ Wallet explorers show raw transactions. They don't tell you which ones are unusu
 2. **Memory that changes behaviour.** Counterparty labels and alert feedback are stored encrypted in Walrus Memory. On the next analysis TRACE recalls them, adjusts priority, cites the exact memory (Walrus blob ID) that caused each change, and shows the memory-free result side by side.
 3. **Honest boundaries.** Read-only, with no wallet connection or signing. Memory is your assertion, never proof of safety. If a provider is down, TRACE says so instead of guessing.
 
+## How it works: one real investigation
+
+These are the actual results from the live app on Sui Mainnet, the same run shown in the demo video.
+
+| Step | What happens | What TRACE showed |
+|---|---|---|
+| 1. Analyze | Paste any Sui address. No wallet connection, no signature. | Address `0xbe04…5369` |
+| 2. Read the chain | TRACE fetches the balance and recent history from Sui Mainnet through Tatum, in cursor pages of 50. | 150 transactions, network `mainnet`, checkpoint 339845498 |
+| 3. Build baselines | Separate baselines for incoming and outgoing transfers. Gas-only transactions are left out. | Incoming: 84 transfers, median 2,233.63 SUI. Outgoing: 7 transfers, too few to judge. 8 gas-only transactions left out. |
+| 4. Flag what stands out | Each transfer is compared with this wallet's own history. | One inflow of 16,516.16 SUI, 7.9 robust deviations above typical. Priority "Review", confidence 66%, with the evidence link. |
+| 5. Add context | The owner knows the counterparty and labels it, with explicit consent. | Label "Known counterparty, reviewed" |
+| 6. Store in Walrus Memory | The label is encrypted and written through the Walrus Memory relayer. TRACE reports it as saved only when the job completes. | Stored, blob `8mQFtsjW…4gJY` |
+| 7. New session | A fresh browser with only the workspace key, and fresh chain data from Tatum. | "Walrus Memory: 1 recalled, result changed" |
+| 8. Memory changes the result | The recalled label lowers the priority one step and is cited as the reason. | Review becomes Low priority: "Memory changed this: medium → low", with the label, date and source. |
+| 9. Compare | One toggle shows the same chain facts without memory. | Without memory the finding is back to "Review". |
+
+## Built on Tatum and Walrus Memory
+
+TRACE needs both services, and each has one clear job.
+
+| | Tatum | TRACE | Walrus Memory |
+|---|---|---|---|
+| Role | Sui chain data | Analysis and learning | Context that persists |
+| What it provides | Network identity, native SUI balance and transaction history from Sui Mainnet | Baselines, explainable findings, user feedback, and what memory changed | Encrypted storage and recall of the user's confirmed labels and alert feedback, across sessions and devices |
+| How TRACE uses it | gRPC (`sui.rpc.v2`): `LedgerService/GetServiceInfo` to confirm Mainnet, `StateService/GetBalance`, and `LedgerService/ListTransactions` paged with its cursor | `anomaly.py` (rule `amount-outlier-v2`) and `learning.py` (rule `memory-context-v1`) | The official `memwal` SDK: `remember`, `get_remember_status`, `recall` and `forget_namespace` |
+| If it is unavailable | The analysis fails with a reference ID. TRACE never guesses chain data. | Not applicable | The analysis continues without memory and says so. Nothing is reported as saved. |
+
+Without Tatum there is nothing to analyse. Without Walrus Memory, every investigation starts from zero. Together they let each investigation build on what the user already confirmed.
+
 ## Features
 
 | Area | What it does |
@@ -67,6 +117,38 @@ Wallet explorers show raw transactions. They don't tell you which ones are unusu
 | Resilience | Retries with backoff and jitter, timeouts, response-size caps, and an honest stateless mode when memory is unreachable. A partial-history indicator shows when data is incomplete. |
 | Production hardening | Startup configuration validation, a Redis-backed rate limiter that fails closed, structured JSON logs, readiness checks, a strict CSP and security headers, and a container image that runs as a non-root user. |
 | Mobile | Layouts verified at 320, 360, 390, and 414 px with no horizontal scrolling and 44 px touch targets. Inputs use 16 px text so iOS doesn't zoom on focus. |
+
+## Anomaly detection
+
+Rule `amount-outlier-v2` ([`apps/api/app/services/anomaly.py`](apps/api/app/services/anomaly.py)):
+
+1. **Classify each transaction** as `transfer`, `gas_only`, `failed` or `no_sui_change`. The sender's gas fee (computation + storage - rebate, reported by Tatum) is removed from transfer amounts.
+2. **Baseline per direction.** Incoming and outgoing transfers each get their own median and median absolute deviation (MAD). A direction needs at least 10 transfers; otherwise TRACE reports thin history for that direction instead of guessing.
+3. **Robust z-score.** `z = (amount - median) / spread`, where `spread = max(1.4826 x MAD, 5% of the median, 0.01 SUI)`. The floor stops a history of identical amounts from producing a zero threshold.
+4. **Severity bands.** Only movements larger than usual are flagged.
+
+   | Robust z | Severity |
+   |---|---|
+   | below 4 | not flagged |
+   | 4 to 12 | medium |
+   | 12 and above | high |
+
+5. **Explained confidence.** `confidence = n / (n + 10) x (0.5 + 0.5 x separation)`, where `separation = min(1, (z - 4) / 8)`. Each finding lists both factors in plain words, and `uncertainty = 1 - confidence`.
+
+Every finding includes the amount, direction, counterparty, threshold, robust z, rule version and a Suiscan evidence link. The wording is always "unusual relative to this wallet's history". A large amount alone is never called malicious.
+
+## The learning loop
+
+Rule `memory-context-v1` ([`apps/api/app/services/learning.py`](apps/api/app/services/learning.py)) applies recalled memory to the findings:
+
+| Memory | Effect on a finding |
+|---|---|
+| Counterparty label | Priority lowered one step (high → medium → low). The finding stays visible. |
+| Alert marked "expected" or "incorrect" | Priority set to low, with that state shown |
+| Alert marked "needs review" | Priority at least medium |
+| A newer record for the same subject | Replaces the older one. An empty label removes the label. |
+
+Chain facts (amounts, digests, evidence) are never changed by memory. Every change cites the memory that caused it (type, date and Walrus blob ID), and the memory-free result is returned alongside for comparison. Labels are shown as the user's assertion, never as verified fact.
 
 ## Screenshots
 
@@ -134,6 +216,27 @@ Analysis flow:
 Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 **How memory is isolated.** There are no user accounts. Each browser holds a random 192-bit workspace key. The API derives a Walrus namespace from its SHA-256 hash, so it never stores the key. Every read, job lookup, and delete is checked against the caller's namespace. Recalled text is re-validated against a strict schema, and anything that fails, including injected instructions or records claiming to be verified, is dropped.
+
+## API reference
+
+Base path `/api/v1`. Full contract: [docs/API.md](docs/API.md).
+
+| Method and path | Purpose |
+|---|---|
+| `POST /wallets/analyze` | Analyse a Sui address: snapshot, activity, findings, memory effects and the memory-free result |
+| `GET /investigations` | This workspace's investigation history, newest first |
+| `GET /investigations/{id}` | One investigation with its baseline and findings |
+| `DELETE /investigations` | Permanently delete this workspace's history (requires `{"confirm": "DELETE"}`) |
+| `GET /alerts` | This workspace's finding history across investigations |
+| `POST /alerts/{digest}/feedback` | Mark a finding expected, needs review or incorrect, stored in Walrus Memory |
+| `POST /memories` | Save a counterparty label or investigation summary to Walrus Memory (returns a job) |
+| `GET /memories/jobs/{job_id}` | Job status: pending, succeeded with its blob ID, or failed |
+| `GET /memories` | Recalled, validated memories with provenance |
+| `DELETE /memories` | Remove this workspace's memories from the Walrus Memory index |
+| `GET /health`, `GET /ready` | Liveness and capabilities; readiness of configuration, rate-limit store and database |
+| `GET /metrics` | Prometheus metrics (bearer token) |
+
+Memory and history routes are scoped by the `X-Trace-Workspace` header. Errors share one shape: `{detail, error: {code, message, request_id, retryable}}`.
 
 ## Tech stack
 
@@ -270,7 +373,7 @@ Report vulnerabilities as described in [SECURITY.md](SECURITY.md).
 ├── apps
 │   ├── api                      FastAPI service
 │   │   ├── app
-│   │   │   ├── core             settings (production validation), JSON logging
+│   │   │   ├── core             settings (production validation), JSON logging, metrics
 │   │   │   ├── db               PostgreSQL store and SQL migrations
 │   │   │   ├── routers          wallets, memories, alerts, investigations
 │   │   │   ├── schemas          request models
@@ -279,9 +382,10 @@ Report vulnerabilities as described in [SECURITY.md](SECURITY.md).
 │   │   ├── tests                pytest suites
 │   │   └── Dockerfile
 │   └── web                      Next.js app (static export)
+│       ├── e2e                  Playwright browser tests (desktop and mobile)
 │       └── src
 │           ├── app              routes: /, /analyze, /wallet/overview, /alerts, /memories
-│           ├── components       SiteHeader, FindingCard, MemoryJob
+│           ├── components       SiteHeader, FindingCard, MemoryJob, landing
 │           └── lib              API client, types, workspace key
 ├── docs                         architecture, API, test report, evidence, images, PRD
 ├── infra/deployment             deployment checklist
