@@ -61,6 +61,6 @@ The Content Security Policy allows API calls to `https://*.onrender.com`. If you
 | Walrus Memory unavailable | Analyses continue statelessly and say so; writes return 503 with "Nothing was saved". Check relayer health and the delegate key. |
 | PostgreSQL unavailable | Analyses keep working and return `history.saved: false`; history routes return 503 and `/ready` returns 503. A restart while the database is down fails loudly instead of silently dropping persistence. |
 | Redis unavailable | Rate-limited routes return 503 (fail closed) and `/ready` returns 503. Restore Key Value. |
-| Cost or abuse spike | Lower `ANALYSIS_RATE_LIMIT`. History depth is capped at 50 transactions per analysis. |
+| Cost or abuse spike | Lower `ANALYSIS_RATE_LIMIT`. History depth is capped at 150 transactions (3 provider pages) per analysis. |
 | Possible credential leak | Rotate the credential first, then inspect logs and history. |
 | Tatum upgrades its Sui node | Run `python apps/api/scripts/refresh_sui_descriptors.py`, run the tests, and commit the updated schema. |
