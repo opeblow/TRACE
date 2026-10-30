@@ -65,6 +65,26 @@ jobs:
           NEXT_PUBLIC_API_URL: https://api.example.invalid
       - run: npm audit --omit=dev --audit-level=high
 
+  e2e:
+    name: Browser tests (desktop and mobile)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://api.test
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - run: npm run test:e2e
+        working-directory: apps/web
+        env:
+          CI: "true"
+
   docker:
     name: API container build
     runs-on: ubuntu-latest
