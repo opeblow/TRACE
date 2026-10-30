@@ -729,3 +729,11 @@ def test_render_external_hostname_is_trusted_automatically():
     settings = Settings(_env_file=None, ALLOWED_HOSTS="api.example.com", RENDER_EXTERNAL_HOSTNAME="My-Service.onrender.com")
     assert settings.allowed_hosts == ["api.example.com", "my-service.onrender.com"]
     assert Settings(_env_file=None, ALLOWED_HOSTS="api.example.com").allowed_hosts == ["api.example.com"]
+
+
+def test_database_url_forms_from_common_providers():
+    from app.core.config import Settings
+    dsn = lambda url: Settings(_env_file=None, DATABASE_URL=url).database_dsn  # noqa: E731
+    assert dsn("postgresql+asyncpg://u:p@h/db") == "postgresql://u:p@h/db"
+    assert dsn("postgresql://u:p@h/db?sslmode=require&channel_binding=require") == "postgresql://u:p@h/db?sslmode=require"
+    assert dsn("postgres://u:p@h:5432/db") == "postgres://u:p@h:5432/db"
