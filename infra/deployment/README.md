@@ -4,6 +4,8 @@ TRACE deploys as two independent parts: a FastAPI service with a Redis-compatibl
 
 ## 1. API on Render
 
+**Without Redis:** for a single instance, set `RATE_LIMIT_STORE=memory` and leave `REDIS_URL` empty. Rate limits are then kept in the API process. Use `redis` (the Blueprint default) once you run more than one instance.
+
 1. In Render, create a **Blueprint** from this repository. It reads [`render.yaml`](../../render.yaml) and creates:
    - `trace-api`: a Python web service rooted at `apps/api`, with health check `/health`.
    - `trace-rate-limits`: a private Key Value instance wired to `REDIS_URL`.
