@@ -427,6 +427,13 @@ def test_production_without_redis_needs_explicit_memory_store():
     assert result.returncode != 0 and "RATE_LIMIT_STORE=memory" in result.stderr
 
 
+def test_cors_origins_ignore_trailing_slashes():
+    from app.core.config import Settings
+
+    settings = Settings(_env_file=None, BACKEND_CORS_ORIGINS="https://a.pages.dev/, https://b.example.com//,")
+    assert settings.cors_origins == ["https://a.pages.dev", "https://b.example.com"]
+
+
 def test_unknown_environment_is_refused():
     result = run_python("from app.main import app", TRACE_ENV="staging-typo")
     assert result.returncode != 0 and "TRACE_ENV must be set" in result.stderr
