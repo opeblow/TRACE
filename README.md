@@ -154,7 +154,8 @@ All secrets are server-side. The web build takes only `NEXT_PUBLIC_API_URL`.
 | `TRACE_ENV` | yes | `development`, `demo`, or `production`. Production validates everything below at startup and refuses to boot if anything is missing or unsafe. |
 | `TATUM_MAINNET_API_KEY` | yes | Tatum key (sent as `x-api-key` gRPC metadata) |
 | `TATUM_GRPC_TARGET` | no | Defaults to `sui-mainnet-grpc.gateway.tatum.io:443` |
-| `REDIS_URL` | production | Shared rate-limit store. Production fails closed without it. |
+| `RATE_LIMIT_STORE` | no | `redis` (default, shared across instances) or `memory` (single-instance deployments, no Redis needed) |
+| `REDIS_URL` | when store is `redis` | Shared rate-limit store. Production fails closed if it is missing or unreachable. |
 | `BACKEND_CORS_ORIGINS` | production | Comma-separated public `https://` web origins |
 | `ALLOWED_HOSTS` | production | API host names (for example `trace-api.onrender.com`) |
 | `WALRUS_MEMORY_PRIVATE_KEY` | for memory | Walrus Memory delegate key (Ed25519) |
