@@ -49,6 +49,10 @@ export default function FindingCard({ finding, wallet, interactive, onApply }: P
         <dd>{finding.counterparty ? <a className="font-mono text-[#176b50] underline underline-offset-4" href={suiscanAccount(finding.counterparty)} target="_blank" rel="noreferrer">{shortHash(finding.counterparty)}</a> : 'Not shown in the transaction’s SUI balance changes'}</dd>
         <dt className="font-medium text-[#40564b]">Rule</dt>
         <dd>{finding.rule_version} · threshold {finding.threshold_sui} SUI · uncertainty {finding.uncertainty}</dd>
+        {finding.confidence != null && <>
+          <dt className="font-medium text-[#40564b]">Confidence</dt>
+          <dd>{Math.round(finding.confidence * 100)}%{finding.confidence_factors?.length ? <ul className="mt-0.5 list-disc pl-4">{finding.confidence_factors.map(f => <li key={f}>{f}</li>)}</ul> : null}</dd>
+        </>}
         <dt className="font-medium text-[#40564b]">Evidence</dt>
         <dd>{digest ? <a className="font-mono text-[#176b50] underline underline-offset-4" href={suiscanTx(digest)} target="_blank" rel="noreferrer">Open transaction evidence ({shortHash(digest, 6, 4)})</a> : 'No transaction reference was returned.'}</dd>
       </dl>
