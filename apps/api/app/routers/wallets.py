@@ -53,7 +53,12 @@ def primary_counterparty(direction: str | None, sender: str | None, address: str
 
 
 def normalize_activity(transactions: list[TransactionRecord], address: str) -> list[dict]:
-    """Net native-SUI change for the analysed address, per transaction, as exact decimal strings."""
+    """Net native-SUI change for the analysed address, per transaction, as exact decimal strings.
+
+    Each item also carries `activity_kind` so the anomaly baseline can exclude movements
+    that are only gas: "transfer", "gas_only", "no_sui_change" or "failed".
+    `transfer_amount_sui` is the net change with the sender's gas fee removed (when Tatum reports it).
+    """
     sui_type = canonical_coin_type(SUI_COIN_TYPE)
     normalized = []
     for tx in transactions:
@@ -64,9 +69,13 @@ def normalize_activity(transactions: list[TransactionRecord], address: str) -> l
             "status": tx.status,
             "direction": None,
             "amount_sui": None,
+            "transfer_amount_sui": None,
+            "gas_fee_sui": None,
+            "activity_kind": "no_sui_change",
             "counterparty": None,
         }
         if tx.status == "failure":
+            item["activity_kind"] = "failed"
             normalized.append(item)
             continue
         net_mist = Decimal(0)
@@ -86,9 +95,19 @@ def normalize_activity(transactions: list[TransactionRecord], address: str) -> l
                 raise ValueError("Invalid balance change amount")
             net_mist += amount
             has_address_change = True
+        is_sender = isinstance(tx.sender, str) and tx.sender.lower() == address.lower()
         if has_address_change:
             item["amount_sui"] = mist_to_sui(net_mist)
+            transfer_mist = net_mist
+            if is_sender and tx.gas_fee_mist is not None:
+                transfer_mist = net_mist + tx.gas_fee_mist
+                item["gas_fee_sui"] = mist_to_sui(Decimal(tx.gas_fee_mist))
+            item["transfer_amount_sui"] = mist_to_sui(transfer_mist)
             item["direction"] = "in" if net_mist > 0 else "out" if net_mist < 0 else "none"
+            if is_sender and tx.gas_fee_mist is not None and transfer_mist == 0:
+                item["activity_kind"] = "gas_only"
+            elif net_mist != 0:
+                item["activity_kind"] = "transfer"
         item["counterparty"] = primary_counterparty(item["direction"], tx.sender, address, others)
         normalized.append(item)
     return normalized
@@ -172,7 +191,7 @@ async def analyze_wallet(request: Request, payload: WalletAnalyzeRequest, x_trac
             partial_reasons.append("provider_has_more_history")
         if baseline.get("status") == "thin_history":
             partial_reasons.append("insufficient_interpretable_history")
-        if baseline.get("sample_count", 0) < len(transactions):
+        if baseline.get("uninterpretable_count", 0) > 0:
             partial_reasons.append("some_transactions_lack_native_sui_balance_changes")
         partial = bool(partial_reasons)
 
