@@ -257,20 +257,98 @@ def test_bounded_history_is_reported_as_partial(monkeypatch):
 
 def test_anomaly_service_requires_interpretable_history_and_evidence():
     service = AnomalyDetectionService()
-    too_short = service.establish_baseline([{"amount_sui": "1"}] * 9)
+    too_short = service.establish_baseline([{"amount_sui": "-1"}] * 9)
     assert too_short["status"] == "thin_history"
-    assert service.detect_anomalies([{"amount_sui": "999", "digest": "x"}], too_short) == []
-    history = [{"amount_sui": "1.0", "digest": f"normal-{i}"} for i in range(10)]
+    assert service.detect_anomalies([{"amount_sui": "-999", "digest": "x"}], too_short) == []
+    history = [{"amount_sui": "-1.0", "digest": f"normal-{i}"} for i in range(10)]
     baseline = service.establish_baseline(history)
     finding = service.detect_anomalies(history + [{"amount_sui": "-4", "digest": "outlier"}], baseline)
     assert baseline["status"] == "established"
+    assert baseline["directions"]["out"]["spread_floor_applied"] is True
     assert len(finding) == 1
     assert finding[0]["evidence"][0]["ref"] == "outlier"
     assert finding[0]["evidence"][0]["source"] == "tatum_sui_grpc"
     assert finding[0]["amount_sui"] == "4"
-    assert finding[0]["severity"] == "medium"
-    assert finding[0]["rule_version"] == "amount-outlier-v1"
+    assert finding[0]["direction"] == "out"
+    assert finding[0]["rule_version"] == "amount-outlier-v2"
+    assert 0 < finding[0]["confidence"] <= 1
+    assert finding[0]["uncertainty"] == round(1 - finding[0]["confidence"], 2)
+    assert len(finding[0]["confidence_factors"]) == 2
     assert "not evidence of malicious activity" in finding[0]["rationale"]
+
+
+def test_gas_only_transactions_do_not_distort_the_baseline():
+    service = AnomalyDetectionService()
+    gas_only = [{"amount_sui": "-0.002", "transfer_amount_sui": "0", "activity_kind": "gas_only", "direction": "out", "digest": f"g{i}"} for i in range(40)]
+    transfers = [{"amount_sui": f"-{v}", "direction": "out", "activity_kind": "transfer", "digest": f"t{i}"} for i, v in enumerate([5, 6, 5, 7, 6, 5, 6, 7, 5, 6])]
+    baseline = service.establish_baseline(gas_only + transfers)
+    assert baseline["excluded"]["gas_only"] == 40
+    assert baseline["directions"]["out"]["sample_count"] == 10
+    assert baseline["directions"]["out"]["median_sui"] == "6"
+    # An ordinary 7 SUI transfer must not be flagged just because gas payments are tiny.
+    assert service.detect_anomalies(gas_only + transfers, baseline) == []
+
+
+def test_incoming_and_outgoing_have_separate_baselines():
+    service = AnomalyDetectionService()
+    incoming = [{"amount_sui": "0.5", "direction": "in", "digest": f"i{i}"} for i in range(12)]
+    outgoing = [{"amount_sui": f"-{v}", "direction": "out", "digest": f"o{i}"} for i, v in enumerate([50, 55, 48, 52, 51, 49, 53, 50, 54, 47])]
+    baseline = service.establish_baseline(incoming + outgoing)
+    assert baseline["assessed_directions"] == ["in", "out"]
+    # Normal outgoing amounts are 100x incoming ones but are judged against outgoing history only.
+    assert service.detect_anomalies(incoming + outgoing, baseline) == []
+    spike = {"amount_sui": "40", "direction": "in", "digest": "big-in"}
+    found = service.detect_anomalies([spike], baseline)
+    assert [f["transaction_digest"] for f in found] == ["big-in"]
+    assert found[0]["severity"] == "high"
+
+
+def test_direction_with_thin_history_is_not_assessed():
+    service = AnomalyDetectionService()
+    history = [{"amount_sui": "1", "direction": "in", "digest": f"i{i}"} for i in range(10)]
+    baseline = service.establish_baseline(history + [{"amount_sui": "-500", "direction": "out", "digest": "only-out"}])
+    assert baseline["directions"]["out"]["status"] == "thin_history"
+    assert service.detect_anomalies([{"amount_sui": "-500", "direction": "out", "digest": "only-out"}], baseline) == []
+
+
+def test_severity_bands_follow_robust_z():
+    service = AnomalyDetectionService()
+    history = [{"amount_sui": str(v), "direction": "in", "digest": f"n{i}"} for i, v in enumerate([8, 9, 10, 11, 12, 10, 9, 11, 10, 10])]
+    baseline = service.establish_baseline(history)
+    stats = baseline["directions"]["in"]
+    medium_at = stats["medium_threshold_sui"]
+    high_at = stats["high_threshold_sui"]
+    below = service.detect_anomalies([{"amount_sui": "11.9", "direction": "in", "digest": "below"}], baseline)
+    medium = service.detect_anomalies([{"amount_sui": medium_at, "direction": "in", "digest": "m"}], baseline)
+    high = service.detect_anomalies([{"amount_sui": high_at, "direction": "in", "digest": "h"}], baseline)
+    assert below == []
+    assert medium[0]["severity"] == "medium" and medium[0]["robust_z"] == 4.0
+    assert high[0]["severity"] == "high" and high[0]["confidence"] > medium[0]["confidence"]
+
+
+def test_smaller_than_usual_movements_are_never_flagged():
+    service = AnomalyDetectionService()
+    history = [{"amount_sui": "100", "direction": "in", "digest": f"n{i}"} for i in range(10)]
+    baseline = service.establish_baseline(history)
+    assert service.detect_anomalies([{"amount_sui": "0.0001", "direction": "in", "digest": "tiny"}], baseline) == []
+
+
+def test_normalize_activity_separates_gas_from_transfers():
+    gas_only = TransactionRecord(digest="gas", timestamp_ms=1, checkpoint=1, status="success", sender=VALID_ADDRESS,
+                                 balance_changes=[BalanceChange(VALID_ADDRESS, LONG_SUI, "-2000000")], gas_fee_mist=2_000_000)
+    paid = TransactionRecord(digest="pay", timestamp_ms=1, checkpoint=1, status="success", sender=VALID_ADDRESS,
+                             balance_changes=[BalanceChange(VALID_ADDRESS, LONG_SUI, "-5002000000"), BalanceChange("0x" + "b" * 64, LONG_SUI, "5000000000")],
+                             gas_fee_mist=2_000_000)
+    received = tx("recv", 3_000_000_000)
+    failed = tx("fail", -1_000_000, status="failure")
+    items = {i["digest"]: i for i in normalize_activity([gas_only, paid, received, failed], VALID_ADDRESS)}
+    assert items["gas"]["activity_kind"] == "gas_only"
+    assert items["gas"]["gas_fee_sui"] == "0.002"
+    assert items["pay"]["activity_kind"] == "transfer"
+    assert items["pay"]["amount_sui"] == "-5.002"
+    assert items["pay"]["transfer_amount_sui"] == "-5"
+    assert items["recv"]["activity_kind"] == "transfer" and items["recv"]["direction"] == "in"
+    assert items["fail"]["activity_kind"] == "failed"
 
 
 def test_anomaly_severity_and_end_to_end_evidence(monkeypatch):
@@ -479,6 +557,15 @@ def build_executed(digest="D1", seconds=1_700_000_000, nanos=123_000_000, succes
     return executed
 
 
+def test_parse_transaction_reads_net_gas_fee():
+    executed = build_executed(changes=[(VALID_ADDRESS, LONG_SUI, "-5")])
+    executed.effects.gas_used.computation_cost = 1000
+    executed.effects.gas_used.storage_cost = 3000
+    executed.effects.gas_used.storage_rebate = 1500
+    assert parse_transaction(executed).gas_fee_mist == 2500
+    assert parse_transaction(build_executed(changes=[(VALID_ADDRESS, LONG_SUI, "-5")])).gas_fee_mist is None
+
+
 def test_parse_transaction_contract():
     record = parse_transaction(build_executed(changes=[(VALID_ADDRESS, LONG_SUI, "-5"), (VALID_ADDRESS, LONG_SUI, None or "7")]))
     assert record.digest == "D1"
@@ -632,3 +719,12 @@ def test_live_tatum_mainnet_analysis():
     assert stamps == sorted(stamps, reverse=True), "transactions should be newest first"
     items = normalize_activity(result.transactions, address)
     assert any(item["amount_sui"] is not None for item in items)
+
+
+# --- Deployment configuration ------------------------------------------------
+
+def test_render_external_hostname_is_trusted_automatically():
+    from app.core.config import Settings
+    settings = Settings(_env_file=None, ALLOWED_HOSTS="api.example.com", RENDER_EXTERNAL_HOSTNAME="Trace-YM2M.onrender.com")
+    assert settings.allowed_hosts == ["api.example.com", "trace-ym2m.onrender.com"]
+    assert Settings(_env_file=None, ALLOWED_HOSTS="api.example.com").allowed_hosts == ["api.example.com"]
