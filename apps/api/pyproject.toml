@@ -1,0 +1,11 @@
+[project]
+name = "trace-api"
+version = "1.1.0"
+description = "TRACE API: read-only Sui wallet intelligence with Walrus Memory"
+requires-python = ">=3.11"
+# Runtime dependencies are pinned in requirements.txt (deployed) and requirements-dev.txt (tests).
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
+filterwarnings = ["ignore::DeprecationWarning:starlette.*", "ignore::DeprecationWarning:fastapi.*"]
