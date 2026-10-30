@@ -68,7 +68,7 @@ def use_fetch(monkeypatch, result=None, error=None):
 
 # --- Health, security headers, and honest capability reporting ---------------
 
-def test_demo_health_does_not_claim_production_readiness():
+def test_health_reports_capabilities_with_security_headers():
     for path in ("/health", "/api/v1/health"):
         response = client.get(path)
         assert response.status_code == 200
@@ -83,9 +83,20 @@ def test_demo_health_does_not_claim_production_readiness():
         assert response.headers.get("x-content-type-options") == "nosniff"
         assert response.headers.get("x-frame-options") == "DENY"
         assert response.headers.get("referrer-policy") == "strict-origin-when-cross-origin"
+
+
+def test_readiness_depends_on_provider_credentials(monkeypatch):
+    # Independent of any local .env: CI has no Tatum key, developer machines may.
+    monkeypatch.setattr("app.main.settings.TATUM_MAINNET_API_KEY", "test-key")
     ready = client.get("/ready")
     assert ready.status_code == 200
     assert ready.json()["ready"] is True
+
+    monkeypatch.setattr("app.main.settings.TATUM_MAINNET_API_KEY", "")
+    not_ready = client.get("/ready")
+    assert not_ready.status_code == 503
+    assert not_ready.json()["checks"]["tatum_credentials"] is False
+    assert "test-key" not in not_ready.text
 
 
 def test_alert_history_is_not_claimed_and_memory_needs_a_workspace():
