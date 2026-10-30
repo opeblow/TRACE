@@ -32,8 +32,10 @@ services:
           property: connectionString
       - key: BACKEND_CORS_ORIGINS
         sync: false
+      # Render's own hostname (RENDER_EXTERNAL_HOSTNAME) is trusted automatically.
+      # List custom domains here, comma separated.
       - key: ALLOWED_HOSTS
-        value: trace-api.onrender.com
+        value: trace-ym2m.onrender.com
       - key: ENABLE_API_DOCS
         value: "false"
       - key: LOG_FORMAT
