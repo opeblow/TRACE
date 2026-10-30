@@ -26,6 +26,9 @@ SUI_COIN_TYPE = "0x2::sui::SUI"
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 CALL_TIMEOUT_SECONDS = 12.0
 MAX_ATTEMPTS = 3
+PAGE_SIZE = 50
+MAX_HISTORY = 200
+MAX_PAGES = MAX_HISTORY // PAGE_SIZE
 RETRYABLE_CODES = {grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.RESOURCE_EXHAUSTED, grpc.StatusCode.DEADLINE_EXCEEDED}
 TRANSACTION_READ_MASK = [
     "digest",
@@ -205,13 +208,16 @@ class TatumService:
         balance = response.balance
         return str(balance.balance) if balance.HasField("balance") else None
 
-    async def _transactions(self, channel, address: str, limit: int) -> tuple[list[TransactionRecord], bool]:
+    async def _transaction_page(self, channel, address: str, page_size: int, before: bytes | None):
+        """One page of the newest-first stream. Returns (records, end_reason, last cursor seen)."""
         request = message_class("ListTransactionsRequest")()
         literal = request.filter.terms.add().literals.add()
         literal.affected_address.address = address
         request.read_mask.paths.extend(TRANSACTION_READ_MASK)
-        request.options.limit = limit
+        request.options.limit = page_size
         request.options.ordering = 1  # ORDERING_DESCENDING: most recent first
+        if before:
+            request.options.before = before
         call = channel.unary_stream(
             "/sui.rpc.v2.LedgerService/ListTransactions",
             request_serializer=lambda message: message.SerializeToString(),
@@ -221,28 +227,48 @@ class TatumService:
         async def run():
             records: list[TransactionRecord] = []
             end_reason = None
+            cursor = None
             async for item in call(request, metadata=self._metadata, timeout=CALL_TIMEOUT_SECONDS):
                 if item.HasField("transaction"):
                     record = parse_transaction(item.transaction)
                     if record is not None:
                         records.append(record)
-                    if len(records) > limit:
+                    if len(records) > page_size:
                         break
+                if item.HasField("watermark") and item.watermark.HasField("cursor") and item.watermark.cursor:
+                    cursor = item.watermark.cursor
                 if item.HasField("end") and item.end.HasField("reason"):
                     end_reason = item.end.reason
-            return records, end_reason
+            return records[:page_size], end_reason, cursor
 
-        records, end_reason = await self._with_retry(run)
-        # ITEM_LIMIT (1) or SCAN_LIMIT (2) means the provider stopped before the
-        # start of history. Treat an unreported reason at the limit as "more may exist".
-        has_more = end_reason in (1, 2) or (end_reason is None and len(records) >= limit)
-        return records[:limit], has_more
+        return await self._with_retry(run)
+
+    async def _transactions(self, channel, address: str, limit: int) -> tuple[list[TransactionRecord], bool]:
+        """Up to `limit` newest transactions, paging with the provider's cursor in pages of PAGE_SIZE."""
+        records: list[TransactionRecord] = []
+        seen: set[str] = set()
+        before: bytes | None = None
+        has_more = False
+        for _ in range(MAX_PAGES):
+            page_size = min(PAGE_SIZE, limit)
+            page, end_reason, cursor = await self._transaction_page(channel, address, page_size, before)
+            for record in page:
+                if record.digest not in seen:  # a page boundary must never double-count a transaction
+                    seen.add(record.digest)
+                    records.append(record)
+            # ITEM_LIMIT (1) or SCAN_LIMIT (2) means the provider stopped before the
+            # start of history. Treat an unreported reason at the page size as "more may exist".
+            has_more = end_reason in (1, 2) or (end_reason is None and len(page) >= page_size)
+            if not has_more or len(records) >= limit or not cursor or cursor == before or not page:
+                break
+            before = cursor
+        return records[:limit], has_more or len(records) > limit
 
     async def fetch_wallet(self, address: str, limit: int = 50) -> WalletFetch:
         if not self.api_key:
             raise TatumProviderError("Tatum API key is not configured")
-        if not 1 <= limit <= 50:
-            raise ValueError("limit must be between 1 and 50")
+        if not 1 <= limit <= MAX_HISTORY:
+            raise ValueError(f"limit must be between 1 and {MAX_HISTORY}")
         async with self._channel() as channel:
             chain, balance, (transactions, has_more) = await asyncio.gather(
                 self._chain_info(channel),
