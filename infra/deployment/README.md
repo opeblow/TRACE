@@ -1,6 +1,6 @@
 # Deployment
 
-TRACE deploys as two independent parts: a FastAPI service with a Redis-compatible store (Render Blueprint or any container host), and a static web app (Vercel, Cloudflare Pages, or Netlify).
+TRACE deploys as two independent parts: a FastAPI service with a Redis-compatible store and PostgreSQL (Render Blueprint or any container host), and a static web app (Vercel, Cloudflare Pages, or Netlify).
 
 ## 1. API on Render
 
@@ -9,6 +9,7 @@ TRACE deploys as two independent parts: a FastAPI service with a Redis-compatibl
 1. In Render, create a **Blueprint** from this repository. It reads [`render.yaml`](../../render.yaml) and creates:
    - `trace-api`: a Python web service rooted at `apps/api`, with health check `/health`.
    - `trace-rate-limits`: a private Key Value instance wired to `REDIS_URL`.
+   - `trace-db`: a private PostgreSQL 16 database (`0.1c-256mb`) wired to `DATABASE_URL`. Tables are created by migrations on first start.
 2. Set the secrets marked `sync: false`:
    - `TATUM_MAINNET_API_KEY`
    - `WALRUS_MEMORY_PRIVATE_KEY` and `MEMWAL_ACCOUNT_ID` (leave both empty to run without memory)
@@ -22,7 +23,8 @@ TRACE deploys as two independent parts: a FastAPI service with a Redis-compatibl
    - the namespace prefix is still `trace-dev`.
 5. Verify:
    - `GET https://<api-host>/health` returns 200 and the capability summary.
-   - `GET https://<api-host>/ready` returns 200 with `"ready": true` (503 if Redis or configuration is not healthy).
+   - `GET https://<api-host>/ready` returns 200 with `"ready": true` and `"database": true` (503 if Redis, PostgreSQL or configuration is not healthy).
+   - `GET https://<api-host>/health` shows `"persistence": "postgresql"`.
 
 **Other container hosts:** build [`apps/api/Dockerfile`](../../apps/api/Dockerfile) (non-root, with a built-in health check), provide the same environment variables and a Redis URL, and expose `$PORT`.
 
@@ -57,6 +59,7 @@ The Content Security Policy allows API calls to `https://*.onrender.com`. If you
 |---|---|
 | Tatum key invalid or expired | Rotate it in the dashboard, update `TATUM_MAINNET_API_KEY`, and redeploy. Analyses return 502 with a reference until fixed. |
 | Walrus Memory unavailable | Analyses continue statelessly and say so; writes return 503 with "Nothing was saved". Check relayer health and the delegate key. |
+| PostgreSQL unavailable | Analyses keep working and return `history.saved: false`; history routes return 503 and `/ready` returns 503. A restart while the database is down fails loudly instead of silently dropping persistence. |
 | Redis unavailable | Rate-limited routes return 503 (fail closed) and `/ready` returns 503. Restore Key Value. |
 | Cost or abuse spike | Lower `ANALYSIS_RATE_LIMIT`. History depth is capped at 50 transactions per analysis. |
 | Possible credential leak | Rotate the credential first, then inspect logs and history. |
