@@ -1,4 +1,5 @@
-﻿from typing import Literal
+import re
+from typing import Literal
 
 from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
@@ -85,6 +86,8 @@ async def submit_memory(request: Request, workspace: str, memory_type: str, wall
 @router.get("/memories")
 async def list_memories(request: Request, wallet: str | None = None, x_trace_workspace: str | None = Header(default=None)):
     workspace = require_workspace(x_trace_workspace)
+    if wallet is not None and not re.fullmatch(r"0x[0-9a-fA-F]{64}", wallet):
+        raise HTTPException(status_code=400, detail="wallet must be 0x followed by 64 hexadecimal characters.")
     require_configured(request)
     try:
         memories = await memory_service.recall(workspace, wallet=wallet.lower() if wallet else None)
@@ -98,6 +101,7 @@ async def list_memories(request: Request, wallet: str | None = None, x_trace_wor
             {
                 "memory_id": m.memory_id,
                 **m.envelope.to_dict(),
+                "assertion": "user_confirmed_not_verified",
                 "stored_at": m.stored_at,
             }
             for m in reversed(memories)
@@ -134,6 +138,9 @@ async def forget_memories(request: Request, payload: ForgetRequest, x_trace_work
         raise HTTPException(status_code=503, detail=UNAVAILABLE.format(request_id=_request_id(request))) from None
     return {
         "deleted": deleted,
+        "index_removed": True,
+        "blobs_erased": False,
+        "chain_records_affected": False,
         "message": "Removed from TRACE's Walrus Memory index for this workspace. Encrypted blobs already written to "
                    "Walrus are not erased by this action, and public blockchain records are never affected.",
     }
