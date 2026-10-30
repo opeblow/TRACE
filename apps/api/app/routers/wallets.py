@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
+from app.core.metrics import metrics
 from app.db.store import InvestigationRecord, StoreUnavailable, get_store
 from app.schemas.schemas import WalletAnalyzeRequest
 from app.services.anomaly import RULE_VERSION, anomaly_service
@@ -19,7 +20,7 @@ logger = logging.getLogger("trace.wallets")
 SUI_ADDRESS_PATTERN = re.compile(r"^0x[0-9a-fA-F]{64}$")
 MIST_PER_SUI = Decimal("1000000000")
 EXPECTED_CHAIN = "mainnet"
-HISTORY_LIMIT = 50
+HISTORY_LIMIT = 150  # three provider pages; deeper history gives steadier baselines
 
 
 def mist_to_sui(raw: str | int) -> str:
@@ -173,10 +174,14 @@ async def analyze_wallet(request: Request, payload: WalletAnalyzeRequest, x_trac
         try:
             fetched = await tatum_service.fetch_wallet(address, limit=HISTORY_LIMIT)
         except TatumProviderError as exc:
+            metrics.inc("trace_provider_failures_total", provider="tatum", kind="request")
+            metrics.inc("trace_analyses_total", outcome="provider_error")
             logger.warning("wallet analysis provider failure request_id=%s error=%s", request_id, exc)
             raise HTTPException(status_code=502, detail=f"Wallet data provider is unavailable. Reference: {request_id}") from None
 
         if fetched.chain.chain != EXPECTED_CHAIN:
+            metrics.inc("trace_provider_failures_total", provider="tatum", kind="wrong_network")
+            metrics.inc("trace_analyses_total", outcome="provider_error")
             logger.warning("provider network mismatch request_id=%s chain=%s", request_id, fetched.chain.chain)
             raise HTTPException(status_code=502, detail=f"Wallet data provider did not confirm Sui Mainnet. Reference: {request_id}")
 
@@ -264,6 +269,9 @@ async def analyze_wallet(request: Request, payload: WalletAnalyzeRequest, x_trac
             },
         }
         result["history"] = await save_history(x_trace_workspace, result, request_id)
+        metrics.inc("trace_analyses_total", outcome=result["analysis"]["status"])
+        metrics.inc("trace_memory_recall_total", status=memory_status)
+        metrics.inc("trace_history_saves_total", outcome="saved" if result["history"]["saved"] else result["history"]["reason"])
         return result
 
     finally:
