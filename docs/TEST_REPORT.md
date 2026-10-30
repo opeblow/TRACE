@@ -6,7 +6,9 @@ Date: 2026-10-30 · Tested against: *TRACE Product Requirements Document v1.0* (
 
 | Area | Result |
 |---|---|
-| API tests (re-run 2026-10-30 with PostgreSQL 16) | **103 passed, 1 skipped** of 104 collected (`test_api.py` 59, `test_memory.py` 29, `test_persistence.py` 16). The skipped test is the opt-in live Tatum Mainnet test. |
+| API tests (re-run 2026-10-30 with PostgreSQL 16) | **113 passed** of 113 collected (`test_api.py` 63, `test_memory.py` 29, `test_metrics.py` 5, `test_persistence.py` 16). 112 run offline; the opt-in live Tatum Mainnet test was run separately and passed. |
+| Browser tests (Playwright, committed in `apps/web/e2e`) | **14 passed** (7 tests on desktop and mobile) |
+| Live pagination check | 150 unique transactions, newest first, in 2-3 s for two Mainnet wallets |
 | Live Tatum Sui Mainnet integration | **Passed** (opt-in test + 3 real wallets over HTTP, ~0.7 s each) |
 | **Walrus Memory learning loop (live Mainnet)** | **Passed**: 12/12 writes completed, new-session recall changed 8 findings, other workspace recalled 0 ([evidence](evidence/LEARNING_LOOP.md)) |
 | Browser end-to-end (Edge, desktop 1366px + mobile 375px) | **46 / 46 passed** against the live API |
@@ -25,7 +27,7 @@ Fix: the Tatum adapter (`apps/api/app/services/tatum.py`) now uses Tatum's Sui g
 
 - `LedgerService/GetServiceInfo`: confirms the provider is on **Mainnet** before data is used (PRD §10).
 - `StateService/GetBalance`: native SUI balance.
-- `LedgerService/ListTransactions`: one affected-address query (both directions), newest first, capped at 50, with an explicit "more history exists" signal.
+- `LedgerService/ListTransactions`: one affected-address query (both directions), newest first, up to 150 in cursor pages of 50, with an explicit "more history exists" signal.
 - Bounded retries with exponential backoff and jitter for UNAVAILABLE / RESOURCE_EXHAUSTED / DEADLINE_EXCEEDED (3 attempts). Auth errors are not retried.
 - 4 MB response cap and 12 s per-call timeout. Errors carry no credentials or upstream text.
 - The schema is vendored in `sui_rpc_v2.binpb`. Refresh it with `scripts/refresh_sui_descriptors.py`.
@@ -111,7 +113,7 @@ On wallet `0x7d3f…cf72`, all 10 findings are "high". Most of its transactions 
 
 - Two test memories from aborted browser runs remain in an unreachable workspace (its key was not kept); it is never recalled by anyone.
 - **Production startup (fixed 2026-10-30).** The code no longer refuses production. The remaining failure was `ALLOWED_HOSTS=trace-api.onrender.com` in `render.yaml`, while the service runs at `trace-ym2m.onrender.com`, so every request got "Invalid host header". The API now trusts Render's `RENDER_EXTERNAL_HOSTNAME` automatically. Verified locally: production boots, `/ready` returns 200 on the Render host, and other hosts are still rejected.
-- **Test count (re-run 2026-10-30):** 86 passed, 1 skipped (live Tatum test, opt-in). Earlier figures of 74 and 77 were from older states of the suite. The browser counts above came from runs outside this repository; no browser suite is committed.
+- **Test count (re-run 2026-10-30):** 86 passed, 1 skipped (live Tatum test, opt-in). Earlier figures of 74 and 77 were from older states of the suite. The browser counts above came from runs outside this repository. The committed browser suite is `apps/web/e2e` (14 passing).
 - The root `.env.local` holds Tatum keys and the Walrus private key. It is git-ignored and not read by the web build, but keep secrets only in `apps/api/.env`.
 - `apps/api/pyproject.toml` lists dependencies the app doesn't use (jose, passlib, sqlalchemy…) that disagree with `requirements.txt`.
 - `atlas.db` at the repo root is an empty SQLite file with unrelated tables (`deadlines`, `mcp_tool_calls`…). It looks like a leftover.
