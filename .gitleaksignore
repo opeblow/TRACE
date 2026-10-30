@@ -1,0 +1,2 @@
+# Reviewed false positives (gitleaks fingerprints). A Render hostname in a test, not a secret.
+770166b5dd843a61173c9021074a134308306453:apps/api/tests/test_api.py:generic-api-key:729
