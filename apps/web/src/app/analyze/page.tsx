@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import SiteHeader from '@/components/SiteHeader'
-import { analyzeWallet } from '@/lib/api'
+import { analyzeWallet, listInvestigations, type InvestigationSummary } from '@/lib/api'
 import { RESULT_KEY } from '@/lib/types'
 
 const validSuiAddress = (value: string) => /^0x[a-fA-F0-9]{64}$/.test(value.trim())
@@ -16,6 +16,13 @@ export default function AnalyzePage() {
   const [error, setError] = useState('')
   const [touched, setTouched] = useState(false)
   const invalid = touched && address.length > 0 && !validSuiAddress(address)
+
+  const [history, setHistory] = useState<{ state: 'loading' | 'ready' | 'error'; items: InvestigationSummary[]; durable: boolean }>({ state: 'loading', items: [], durable: false })
+  useEffect(() => {
+    listInvestigations()
+      .then(data => setHistory({ state: 'ready', items: data.investigations, durable: data.durable }))
+      .catch(() => setHistory({ state: 'error', items: [], durable: false }))
+  }, [])
 
   // Prefill from the landing-page form (?address=0x…). The user still confirms by submitting.
   useEffect(() => {
@@ -51,6 +58,19 @@ export default function AnalyzePage() {
         {invalid && <p id="address-invalid" role="alert" className="mt-2 text-sm text-[#9b4c25]">Enter a valid Sui address: 0x followed by 64 hexadecimal characters.</p>}
         {error && <p id="address-error" role="alert" className="mt-3 rounded-lg border border-[#eed2c7] bg-[#fff8f5] px-4 py-3 text-sm text-[#8d3d25]">{error}</p>}
       </form>
+      <section aria-labelledby="history-title" className="mt-12 max-w-2xl">
+        <div className="flex items-baseline justify-between gap-4"><h2 id="history-title" className="text-lg font-semibold tracking-[-.02em]">Recent investigations</h2>{history.state === 'ready' && history.items.length > 0 && !history.durable && <span className="text-xs text-[#705c32]">Kept until the server restarts</span>}</div>
+        {history.state === 'loading' && <p role="status" className="mt-3 text-sm text-[#5f6c66]">Loading your history…</p>}
+        {history.state === 'error' && <p role="status" className="mt-3 text-sm text-[#5f6c66]">History is unavailable right now. You can still analyze a wallet.</p>}
+        {history.state === 'ready' && history.items.length === 0 && <p className="mt-3 text-sm text-[#5f6c66]">No investigations yet in this workspace. Analyses you run here will be listed.</p>}
+        {history.state === 'ready' && history.items.length > 0 && <ul className="mt-3 divide-y divide-[#e8ede9] rounded-xl border border-[#dce4de] bg-white">
+          {history.items.map(item => <li key={item.investigation_id}><button type="button" onClick={() => { setAddress(item.address); setTouched(true); window.scrollTo({ top: 0, behavior: 'smooth' }) }} className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-[#fafaf7]">
+            <span className="min-w-0 flex-1 truncate font-mono">{item.address.slice(0, 10)}…{item.address.slice(-6)}</span>
+            <span className="text-[#5f6c66]">{item.anomaly_count ? `${item.anomaly_count} finding${item.anomaly_count > 1 ? 's' : ''}${item.highest_severity ? ` · ${item.highest_severity}` : ''}` : 'No findings'}</span>
+            <time dateTime={item.created_at} className="hidden text-xs text-[#89948e] sm:inline">{new Date(item.created_at).toLocaleDateString()}</time>
+          </button></li>)}
+        </ul>}
+      </section>
       <p className="mt-5 max-w-2xl text-xs leading-5 text-[#6d7972]">Read-only analysis. Never enter a seed phrase or private key. Findings describe observable patterns and are not proof of malicious activity.</p>
     </section>
   </main>
