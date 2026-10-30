@@ -1,0 +1,52 @@
+# Render Blueprint: TRACE API + private Key Value (rate limits).
+# Set the `sync: false` secrets in the Render dashboard. See infra/deployment/README.md.
+services:
+  - type: web
+    name: trace-api
+    runtime: python
+    rootDir: apps/api
+    region: oregon
+    plan: 0.5c-512mb
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --no-server-header
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.16
+      - key: TRACE_ENV
+        value: production
+      - key: TATUM_MAINNET_API_KEY
+        sync: false
+      - key: WALRUS_MEMORY_PRIVATE_KEY
+        sync: false
+      - key: MEMWAL_ACCOUNT_ID
+        sync: false
+      - key: MEMWAL_SERVER_URL
+        value: https://relayer.memory.walrus.xyz
+      - key: MEMWAL_NAMESPACE_PREFIX
+        value: trace-prod
+      - key: REDIS_URL
+        fromService:
+          name: trace-rate-limits
+          type: keyvalue
+          property: connectionString
+      - key: BACKEND_CORS_ORIGINS
+        sync: false
+      - key: ALLOWED_HOSTS
+        value: trace-api.onrender.com
+      - key: ENABLE_API_DOCS
+        value: "false"
+      - key: LOG_FORMAT
+        value: json
+      - key: ANALYSIS_RATE_LIMIT
+        value: "10"
+      - key: ANALYSIS_RATE_WINDOW_SECONDS
+        value: "60"
+
+  - type: keyvalue
+    name: trace-rate-limits
+    region: oregon
+    plan: 256mb
+    maxmemoryPolicy: allkeys-lru
+    persistenceMode: off
+    ipAllowList: []
