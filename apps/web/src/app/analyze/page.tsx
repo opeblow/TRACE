@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import SiteHeader from '@/components/SiteHeader'
@@ -16,6 +16,12 @@ export default function AnalyzePage() {
   const [error, setError] = useState('')
   const [touched, setTouched] = useState(false)
   const invalid = touched && address.length > 0 && !validSuiAddress(address)
+
+  // Prefill from the landing-page form (?address=0x…). The user still confirms by submitting.
+  useEffect(() => {
+    const fromQuery = new URLSearchParams(window.location.search).get('address')
+    if (fromQuery) { setAddress(fromQuery.trim()); setTouched(true) }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
