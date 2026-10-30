@@ -1,4 +1,7 @@
-﻿from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Header, HTTPException, Query, Request
+
+from app.db.store import StoreUnavailable, get_store
+from app.services.memory import workspace_namespace
 
 from app.routers.memories import FeedbackRequest, require_workspace, submit_memory
 
@@ -6,10 +9,17 @@ router = APIRouter()
 
 
 @router.get("/alerts")
-async def get_alerts(wallet_id: str | None = None, status: str | None = None):
-    # Findings are returned with each analysis. There is no server-side alert
-    # history; user feedback on findings is stored in Walrus Memory instead.
-    return {"available": False, "reason": "alerts are returned with each wallet analysis", "alerts": []}
+async def get_alerts(request: Request, limit: int = Query(default=50, ge=1, le=100), x_trace_workspace: str | None = Header(default=None)):
+    """Finding history for this workspace, newest investigation first."""
+    if not x_trace_workspace:
+        return {"available": False, "reason": "a workspace key is required for alert history", "alerts": []}
+    namespace = workspace_namespace(require_workspace(x_trace_workspace))
+    store = get_store()
+    try:
+        alerts = await store.recent_findings(namespace, limit)
+    except StoreUnavailable:
+        raise HTTPException(status_code=503, detail=f"Alert history is unavailable right now. Reference: {getattr(request.state, 'request_id', 'unknown')}") from None
+    return {"available": True, "durable": store.durable, "alerts": alerts}
 
 
 @router.get("/alerts/{alert_id}")
