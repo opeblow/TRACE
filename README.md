@@ -6,6 +6,11 @@
 
 TRACE reads a wallet's recent Sui Mainnet activity through Tatum, flags statistically unusual movements with on-chain evidence, and learns from your labels and alert feedback through Walrus Memory. Later analyses change in ways you can see and verify.
 
+[![Live app](https://img.shields.io/badge/Live%20app-trace--7w2.pages.dev-176B50?style=for-the-badge&logo=cloudflarepages&logoColor=white)](https://trace-7w2.pages.dev/)
+[![Live API](https://img.shields.io/badge/Live%20API-trace--ym2m.onrender.com-17231F?style=for-the-badge&logo=render&logoColor=white)](https://trace-ym2m.onrender.com/health)
+
+**Live app:** [https://trace-7w2.pages.dev](https://trace-7w2.pages.dev/) &nbsp;|&nbsp; **Live API:** [https://trace-ym2m.onrender.com](https://trace-ym2m.onrender.com/health)
+
 [![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)](apps/api/requirements.txt)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?logo=fastapi&logoColor=white)](apps/api)
 [![Next.js](https://img.shields.io/badge/Next.js-16.4-000000?logo=nextdotjs&logoColor=white)](apps/web)
@@ -14,7 +19,7 @@ TRACE reads a wallet's recent Sui Mainnet activity through Tatum, flags statisti
 [![Tatum](https://img.shields.io/badge/data-Tatum%20Sui%20gRPC-6E3CF0)](https://docs.tatum.io/reference/rpc-sui)
 [![Walrus Memory](https://img.shields.io/badge/memory-Walrus%20Memory-1F8A70)](https://docs.wal.app/walrus-memory/python-sdk/usage/memwal)
 
-[![API tests](https://img.shields.io/badge/API%20tests-74%20passing-2EA44F)](docs/TEST_REPORT.md)
+[![API tests](https://img.shields.io/badge/API%20tests-77%20passing-2EA44F)](docs/TEST_REPORT.md)
 [![Browser tests](https://img.shields.io/badge/browser%20E2E-67%20passing-2EA44F)](docs/TEST_REPORT.md)
 [![Vulnerabilities](https://img.shields.io/badge/known%20vulnerabilities-0-2EA44F)](docs/TEST_REPORT.md)
 [![Mobile](https://img.shields.io/badge/mobile-320px%2B-2EA44F)](docs/TEST_REPORT.md)
@@ -22,7 +27,9 @@ TRACE reads a wallet's recent Sui Mainnet activity through Tatum, flags statisti
 
 [Features](#features) · [Screenshots](#screenshots) · [Architecture](#architecture) · [Quick start](#quick-start) · [Deployment](#deployment) · [Testing](#testing) · [Security](#security-and-privacy)
 
-<img src="docs/images/overview.png" alt="TRACE wallet overview showing Sui Mainnet provenance, balance, findings and Walrus Memory status" width="900">
+<a href="https://trace-7w2.pages.dev/"><img src="docs/images/overview.png" alt="TRACE wallet overview showing Sui Mainnet provenance, balance, findings and Walrus Memory status. Click to open the live app." width="900"></a>
+
+<sub>Click the screenshot to open the live app.</sub>
 
 </div>
 
@@ -168,6 +175,17 @@ All secrets are server-side. The web build takes only `NEXT_PUBLIC_API_URL`.
 
 ## Deployment
 
+**Production:**
+
+| Component | Host | URL |
+|---|---|---|
+| Web app | Cloudflare Pages | [https://trace-7w2.pages.dev](https://trace-7w2.pages.dev/) |
+| API | Render | [https://trace-ym2m.onrender.com](https://trace-ym2m.onrender.com/health) (`/health`, `/ready`) |
+
+If the Render plan sleeps when idle, the first request after a quiet period can take up to a minute while the API wakes up.
+
+**Deploy your own:**
+
 | Component | Target | Configuration |
 |---|---|---|
 | API and Redis | Render (Blueprint) | [`render.yaml`](render.yaml) |
@@ -184,7 +202,7 @@ The full checklist is in [infra/deployment/README.md](infra/deployment/README.md
 
 ```bash
 cd apps/api
-TRACE_ENV=development python -m pytest -q                       # 74 offline tests
+TRACE_ENV=development python -m pytest -q                       # 77 offline tests
 TRACE_ENV=development TRACE_LIVE_TESTS=1 python -m pytest -q    # adds a live Tatum Mainnet test
 python scripts/memory_demo.py                                    # live Walrus learning-loop evidence
 
@@ -193,7 +211,7 @@ npm run lint && npm run build                                    # web type-chec
 
 | Suite | Coverage |
 |---|---|
-| API (74) | Address validation, exact decimals, coin-type canonicalization, gRPC contract against the real Sui schema, retries, redaction, rate limits, production config validation, memory consent, secret rejection, tampered-record rejection, workspace isolation, the outage fallback, and the PRD learning-loop acceptance test |
+| API (77) | Address validation, exact decimals, coin-type canonicalization, gRPC contract against the real Sui schema, retries, redaction, rate limits, production config validation, memory consent, secret rejection, tampered-record rejection, workspace isolation, the outage fallback, and the PRD learning-loop acceptance test |
 | Browser (67) | Desktop and mobile journeys against live Tatum and Walrus: analyze, evidence links, label, Walrus job completion, re-run, the with/without-memory toggle, new-session recall, Memory Centre delete, isolation, keyboard access, and empty and error states |
 | Live evidence | 12 of 12 Walrus Mainnet writes completed. A new session changed 8 findings, and another workspace recalled none. See [docs/evidence/LEARNING_LOOP.md](docs/evidence/LEARNING_LOOP.md). |
 
