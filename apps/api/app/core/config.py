@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     TATUM_MAINNET_API_KEY: str = ""
     TATUM_GRPC_TARGET: str = "sui-mainnet-grpc.gateway.tatum.io:443"
     REDIS_URL: str = ""
+    # PostgreSQL for investigation history and memory job ownership. Empty = process-local store.
+    DATABASE_URL: str = ""
+    DATABASE_POOL_MAX: int = Field(default=5, ge=1, le=50)
     # "redis" (shared, multi-instance) or "memory" (single-instance deployments only)
     RATE_LIMIT_STORE: str = Field(default="redis", pattern=r"^(redis|memory)$")
     ANALYSIS_RATE_LIMIT: int = Field(default=10, ge=1, le=1000)
@@ -64,9 +67,20 @@ class Settings(BaseSettings):
             problems.append("ALLOWED_HOSTS must list the API's public host names")
         if bool(self.WALRUS_MEMORY_PRIVATE_KEY) != bool(self.MEMWAL_ACCOUNT_ID):
             problems.append("Walrus Memory is half-configured: set both WALRUS_MEMORY_PRIVATE_KEY and MEMWAL_ACCOUNT_ID, or neither")
+        if self.memory_configured and not self.MEMWAL_SERVER_URL.startswith("https://"):
+            problems.append("MEMWAL_SERVER_URL must be an https:// URL")
+        if self.DATABASE_URL and not self.database_dsn.startswith(("postgres://", "postgresql://")):
+            problems.append("DATABASE_URL must be a postgres:// or postgresql:// URL")
         if self.MEMWAL_NAMESPACE_PREFIX == "trace-dev":
             problems.append("MEMWAL_NAMESPACE_PREFIX must not be the development prefix in production")
         return problems
+
+    @property
+    def database_dsn(self) -> str:
+        """DATABASE_URL in the form asyncpg accepts (drops SQLAlchemy driver suffixes such as +asyncpg)."""
+        url = self.DATABASE_URL.strip()
+        scheme, sep, rest = url.partition("://")
+        return f"{scheme.split('+', 1)[0]}{sep}{rest}" if sep else url
 
     @property
     def cors_origins(self) -> list[str]:
