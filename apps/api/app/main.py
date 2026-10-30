@@ -100,7 +100,7 @@ class HealthCheckAwareTrustedHost(TrustedHostMiddleware):
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     redis_client = None
-    if settings.REDIS_URL:
+    if settings.REDIS_URL and settings.RATE_LIMIT_STORE == "redis":
         redis_client = Redis.from_url(
             settings.REDIS_URL,
             decode_responses=True,
@@ -118,8 +118,10 @@ async def lifespan(application: FastAPI):
             # every analysis fail with 503. Fall back to the process-local limiter.
             logger.warning("REDIS_URL is unreachable; using the process-local rate limiter for %s", settings.TRACE_ENV)
             redis_client = None
-    elif settings.is_production:
+    elif settings.is_production and settings.RATE_LIMIT_STORE == "redis":
         raise RuntimeError("Production requires REDIS_URL for shared rate limiting")
+    elif settings.is_production:
+        logger.warning("Using the in-process rate limiter (RATE_LIMIT_STORE=memory); run a single instance")
     application.state.redis = redis_client
     try:
         yield
@@ -276,7 +278,7 @@ async def ready(request: Request):
     """Readiness: configuration and the rate-limit store. Returns 503 when not ready."""
     checks = {"configuration": not settings.configuration_problems(), "tatum_credentials": bool(settings.TATUM_MAINNET_API_KEY)}
     redis_client = getattr(request.app.state, "redis", None)
-    if settings.is_production or redis_client is not None:
+    if settings.RATE_LIMIT_STORE == "redis" and (settings.is_production or redis_client is not None):
         try:
             checks["rate_limit_store"] = bool(redis_client is not None and await redis_client.ping())
         except (RedisError, OSError):
