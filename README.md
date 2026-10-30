@@ -19,8 +19,7 @@ TRACE reads a wallet's recent Sui Mainnet activity through Tatum, flags statisti
 [![Tatum](https://img.shields.io/badge/data-Tatum%20Sui%20gRPC-6E3CF0)](https://docs.tatum.io/reference/rpc-sui)
 [![Walrus Memory](https://img.shields.io/badge/memory-Walrus%20Memory-1F8A70)](https://docs.wal.app/walrus-memory/python-sdk/usage/memwal)
 
-[![API tests](https://img.shields.io/badge/API%20tests-77%20passing-2EA44F)](docs/TEST_REPORT.md)
-[![Browser tests](https://img.shields.io/badge/browser%20E2E-67%20passing-2EA44F)](docs/TEST_REPORT.md)
+[![API tests](https://img.shields.io/badge/API%20tests-86%20passing-2EA44F)](docs/TEST_REPORT.md)
 [![Vulnerabilities](https://img.shields.io/badge/known%20vulnerabilities-0-2EA44F)](docs/TEST_REPORT.md)
 [![Mobile](https://img.shields.io/badge/mobile-320px%2B-2EA44F)](docs/TEST_REPORT.md)
 [![Read-only](https://img.shields.io/badge/wallet%20access-read--only-17231F)](#security-and-privacy)
@@ -46,7 +45,7 @@ Wallet explorers show raw transactions. They don't tell you which ones are unusu
 | Area | What it does |
 |---|---|
 | Wallet analysis | Validates the address, verifies the provider is on Sui Mainnet, and reads the native SUI balance and the 50 most recent transactions through Tatum's Sui gRPC interface. All amounts use exact decimal arithmetic. |
-| Anomaly detection | Builds a median and median-absolute-deviation baseline from the wallet's own history, labels thin history, and flags outliers with severity, uncertainty, rule version, counterparty, and evidence. |
+| Anomaly detection | Rule `amount-outlier-v2`: separate median + MAD baselines for incoming and outgoing transfers, with gas-only and failed transactions excluded and the sender's gas fee removed from transfer amounts. Severity comes from robust z-score bands (medium at 4, high at 12). Each finding carries a confidence score with the factors behind it, plus uncertainty, counterparty and evidence. Large amounts are never labelled malicious. |
 | Learning loop | Label a counterparty or mark an alert expected, needing review, or incorrect. The write is confirmed only after the Walrus job completes. Re-analysis then shows "Memory changed this: high → medium" with provenance. |
 | Compare | One toggle switches between the result with memory and the same chain facts without memory. |
 | Memory Centre | Lists every saved memory with type, date, source, and Walrus blob. You can move your workspace to another device or delete everything after a confirmation that explains what deletion cannot erase. |
@@ -126,7 +125,7 @@ Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | Chain data | Tatum Sui gRPC (`sui.rpc.v2`), with the schema vendored and refreshable |
 | Memory | Walrus Memory via the official `memwal` Python SDK |
 | Rate limiting | Redis-compatible store, atomic Lua counter |
-| Quality | pytest (including SDK mock and live opt-in tests), Playwright end-to-end, pip-audit, npm audit, gitleaks, GitHub Actions |
+| Quality | pytest (including SDK mock and live opt-in tests), pip-audit, npm audit, gitleaks, GitHub Actions |
 
 ## Quick start
 
@@ -164,7 +163,7 @@ All secrets are server-side. The web build takes only `NEXT_PUBLIC_API_URL`.
 | `RATE_LIMIT_STORE` | no | `redis` (default, shared across instances) or `memory` (single-instance deployments, no Redis needed) |
 | `REDIS_URL` | when store is `redis` | Shared rate-limit store. Production fails closed if it is missing or unreachable. |
 | `BACKEND_CORS_ORIGINS` | production | Comma-separated public `https://` web origins |
-| `ALLOWED_HOSTS` | production | API host names (for example `trace-api.onrender.com`) |
+| `ALLOWED_HOSTS` | production | API host names, comma separated. On Render the service's own host (`RENDER_EXTERNAL_HOSTNAME`) is trusted automatically, so list only custom domains. |
 | `WALRUS_MEMORY_PRIVATE_KEY` | for memory | Walrus Memory delegate key (Ed25519) |
 | `MEMWAL_ACCOUNT_ID` | for memory | Walrus Memory account object ID |
 | `MEMWAL_SERVER_URL` | no | Defaults to `https://relayer.memory.walrus.xyz` |
@@ -202,7 +201,7 @@ The full checklist is in [infra/deployment/README.md](infra/deployment/README.md
 
 ```bash
 cd apps/api
-TRACE_ENV=development python -m pytest -q                       # 77 offline tests
+TRACE_ENV=development python -m pytest -q                       # 86 offline tests (1 live test skipped)
 TRACE_ENV=development TRACE_LIVE_TESTS=1 python -m pytest -q    # adds a live Tatum Mainnet test
 python scripts/memory_demo.py                                    # live Walrus learning-loop evidence
 
@@ -211,8 +210,8 @@ npm run lint && npm run build                                    # web type-chec
 
 | Suite | Coverage |
 |---|---|
-| API (77) | Address validation, exact decimals, coin-type canonicalization, gRPC contract against the real Sui schema, retries, redaction, rate limits, production config validation, memory consent, secret rejection, tampered-record rejection, workspace isolation, the outage fallback, and the PRD learning-loop acceptance test |
-| Browser (67) | Desktop and mobile journeys against live Tatum and Walrus: analyze, evidence links, label, Walrus job completion, re-run, the with/without-memory toggle, new-session recall, Memory Centre delete, isolation, keyboard access, and empty and error states |
+| API (86) | Anomaly rule v2 (gas-only exclusion, separate in/out baselines, zero-MAD floor, severity bands, confidence), address validation, exact decimals, coin-type canonicalization, gRPC contract against the real Sui schema, retries, redaction, rate limits, production config validation, memory consent, secret rejection, tampered-record rejection, workspace isolation, the outage fallback, and the PRD learning-loop acceptance test |
+| Browser | Manual and scripted journeys were run during development (see the test report), but no browser test suite is committed to this repository yet. |
 | Live evidence | 12 of 12 Walrus Mainnet writes completed. A new session changed 8 findings, and another workspace recalled none. See [docs/evidence/LEARNING_LOOP.md](docs/evidence/LEARNING_LOOP.md). |
 
 CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the API tests, pip-audit, the web type-check, build and npm audit, the container build, and a gitleaks secret scan.
@@ -259,7 +258,8 @@ Report vulnerabilities as described in [SECURITY.md](SECURITY.md).
 - There are no user accounts. Memory is scoped to a per-browser workspace key, and anyone holding the key can read that workspace's memory.
 - History covers the 50 most recent transactions; pagination is not implemented.
 - Findings use deterministic rules and templates; there is no LLM explanation layer.
-- Wallets dominated by tiny gas-only transactions can over-flag larger transfers. The next rule version should baseline inflows and outflows separately.
+- Gas-only detection needs Tatum to report `effects.gas_used`. When it is missing, the transaction is treated as an ordinary movement.
+- No PostgreSQL persistence, server-side alert history, or committed browser end-to-end suite yet.
 
 ## Documentation
 
