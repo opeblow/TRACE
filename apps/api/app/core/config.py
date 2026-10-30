@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     RENDER_EXTERNAL_HOSTNAME: str = ""
 
     ENABLE_API_DOCS: bool = False
+    # Bearer token for GET /metrics. Production hides /metrics unless this is set.
+    METRICS_TOKEN: str = ""
     LOG_FORMAT: str = Field(default="auto", pattern=r"^(auto|json|text)$")
 
     @property
