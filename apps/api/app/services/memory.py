@@ -25,7 +25,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable
 
+from collections import OrderedDict
+
 from app.core.config import settings
+from app.db.store import StoreUnavailable, get_store
 
 logger = logging.getLogger("trace.memory")
 
@@ -41,6 +44,7 @@ MAX_LABEL_CHARS = 60
 MAX_TEXT_CHARS = 280
 RECALL_LIMIT = 100
 RECALL_TIMEOUT_SECONDS = 8.0
+LOCAL_JOB_REGISTRY_SIZE = 10_000
 
 # Patterns that look like secrets. TRACE never stores these (PRD §9 "Sensitive information").
 _SECRET_PATTERNS = [
@@ -200,6 +204,25 @@ ClientFactory = Callable[[str], Any]
 class MemoryService:
     def __init__(self, client_factory: ClientFactory | None = None):
         self._client_factory = client_factory
+        # job_id -> namespace for jobs this process accepted. Backs up the durable store,
+        # so ownership can still be checked when the database is briefly unreachable.
+        self._local_jobs: OrderedDict[str, str] = OrderedDict()
+
+    def _remember_owner(self, job_id: str, namespace: str) -> None:
+        self._local_jobs[job_id] = namespace
+        self._local_jobs.move_to_end(job_id)
+        while len(self._local_jobs) > LOCAL_JOB_REGISTRY_SIZE:
+            self._local_jobs.popitem(last=False)
+
+    async def _job_owner(self, job_id: str) -> str | None:
+        owner = self._local_jobs.get(job_id)
+        if owner is not None:
+            return owner
+        try:
+            return await get_store().job_owner(job_id)
+        except StoreUnavailable:
+            logger.warning("job ownership lookup unavailable; treating job as unknown")
+            return None
 
     @property
     def configured(self) -> bool:
@@ -250,6 +273,13 @@ class MemoryService:
             return accepted.job_id
 
         job_id = await self._with_client(namespace, action)
+        if not isinstance(job_id, str) or not JOB_ID_PATTERN.fullmatch(job_id):
+            raise MemoryUnavailable("Walrus Memory returned an invalid job id")
+        self._remember_owner(job_id, namespace)
+        try:
+            await get_store().record_job(job_id, namespace, envelope.memory_type)
+        except StoreUnavailable:
+            logger.warning("memory job ownership not persisted; using the in-process registry")
         _audit("write_accepted", memory_type=envelope.memory_type, job_id=job_id, namespace_ref=namespace_ref(namespace))
         return job_id
 
@@ -261,13 +291,28 @@ class MemoryService:
         async def action(client):
             return await client.get_remember_status(job_id)
 
+        # Every workspace shares one Walrus account, so the provider's own ownership check
+        # cannot tell workspaces apart. TRACE checks the namespace itself: the provider's
+        # reported namespace when present, and its own record of who submitted the job.
+        owner = await self._job_owner(job_id)
+        if owner is not None and owner != namespace:
+            return {"job_id": job_id, "status": "not_found"}
         status = await self._with_client(namespace, action)
-        # A job from another workspace is reported exactly like an unknown job.
-        if status.status == "not_found" or (status.namespace is not None and status.namespace != namespace):
+        if status.status == "not_found":
+            return {"job_id": job_id, "status": "not_found"}
+        if status.namespace is not None:
+            if status.namespace != namespace:
+                return {"job_id": job_id, "status": "not_found"}
+        elif owner is None:
+            # Neither the provider nor TRACE can show this job belongs to the caller: fail closed.
             return {"job_id": job_id, "status": "not_found"}
         state = {"done": "succeeded", "failed": "failed"}.get(status.status, "pending")
         if state in ("succeeded", "failed"):
             _audit(f"write_{state}", job_id=job_id, namespace_ref=namespace_ref(namespace))
+            try:
+                await get_store().update_job(job_id, namespace, state, status.blob_id if state == "succeeded" else None)
+            except StoreUnavailable:
+                logger.warning("memory job status not persisted")
         return {
             "job_id": job_id,
             "status": state,
@@ -288,13 +333,20 @@ class MemoryService:
         result = await asyncio.wait_for(self._with_client(namespace, action), timeout=RECALL_TIMEOUT_SECONDS)
         memories = []
         dropped = 0
+        seen: set[tuple] = set()
         for item in getattr(result, "results", []):
             envelope = decode(getattr(item, "text", None))
-            if envelope is None:
+            blob_id = getattr(item, "blob_id", None)
+            if envelope is None or not isinstance(blob_id, str) or not blob_id:
                 dropped += 1
                 continue
             if wallet and envelope.wallet != wallet.lower():
                 continue
+            # The same assertion stored twice (e.g. a retried write) is shown and applied once.
+            identity = (envelope.memory_type, envelope.subject, envelope.value, envelope.reason, envelope.created_at)
+            if identity in seen:
+                continue
+            seen.add(identity)
             memories.append(RecalledMemory(memory_id=str(item.blob_id), envelope=envelope, stored_at=getattr(item, "created_at", None)))
         memories.sort(key=lambda m: m.envelope.created_at)
         _audit("recall", namespace_ref=namespace_ref(namespace), returned=len(memories), dropped_invalid=dropped)
@@ -307,6 +359,12 @@ class MemoryService:
             return await client.forget_namespace(namespace)
 
         result = await self._with_client(namespace, action)
+        for job_id in [k for k, v in self._local_jobs.items() if v == namespace]:
+            del self._local_jobs[job_id]
+        try:
+            await get_store().forget_jobs(namespace)
+        except StoreUnavailable:
+            logger.warning("memory job records not cleared from the database")
         _audit("forget_namespace", namespace_ref=namespace_ref(namespace), deleted=result.deleted)
         return int(result.deleted)
 
