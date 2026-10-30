@@ -24,6 +24,7 @@ TRACE reads a wallet's recent Sui Mainnet activity through Tatum, flags statisti
 [![Vulnerabilities](https://img.shields.io/badge/known%20vulnerabilities-0-2EA44F)](docs/TEST_REPORT.md)
 [![Mobile](https://img.shields.io/badge/mobile-320px%2B-2EA44F)](docs/TEST_REPORT.md)
 [![Read-only](https://img.shields.io/badge/wallet%20access-read--only-17231F)](#security-and-privacy)
+[![License: MIT](https://img.shields.io/badge/license-MIT-176B50)](LICENSE)
 
 **[Watch the demo](#demo-video)** &nbsp;·&nbsp; **[Try it live](https://trace-7w2.pages.dev/)** &nbsp;·&nbsp; **[How it works](#how-it-works-one-real-investigation)** &nbsp;·&nbsp; **[Tatum and Walrus](#built-on-tatum-and-walrus-memory)** &nbsp;·&nbsp; **[Run it locally](#quick-start)**
 
@@ -53,6 +54,8 @@ TRACE reads a wallet's recent Sui Mainnet activity through Tatum, flags statisti
 16. [Security and privacy](#security-and-privacy)
 17. [Project structure](#project-structure)
 18. [Documentation](#documentation)
+19. [Contributing](#contributing)
+20. [License](#license)
 
 ## Demo video
 
@@ -364,7 +367,7 @@ CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs these tests wit
 - **Memory hygiene.** Writes need explicit consent. Text that looks like a seed phrase, private key, or password is rejected. Audit logs record events without memory text or workspace keys.
 - **Honest deletion.** Deleting memory removes it from TRACE's Walrus index. Encrypted blobs already on Walrus and public chain records are not erased, and the UI says so.
 
-Report vulnerabilities as described in [SECURITY.md](SECURITY.md).
+Report vulnerabilities as described in [SECURITY.md](SECURITY.md). How data is handled is described in [PRIVACY.md](PRIVACY.md).
 
 ## Project structure
 
@@ -398,3 +401,13 @@ Report vulnerabilities as described in [SECURITY.md](SECURITY.md).
 ## Documentation
 
 [Architecture and memory design](docs/ARCHITECTURE.md) · [API reference](docs/API.md) · [Database](docs/DATABASE.md) · [Test report](docs/TEST_REPORT.md) · [Learning-loop evidence](docs/evidence/LEARNING_LOOP.md) · [Deployment](infra/deployment/README.md) · [Product requirements (PDF)](docs/prd/TRACE_Product_Requirements_Document.pdf)
+
+**Project policies:** [Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security policy](SECURITY.md) · [Privacy policy](PRIVACY.md) · [License](LICENSE)
+
+## Contributing
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests and the pull request process, and follow the [Code of Conduct](CODE_OF_CONDUCT.md). Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+
+## License
+
+TRACE is open source under the [MIT License](LICENSE).
