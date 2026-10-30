@@ -18,6 +18,9 @@ export type Finding = {
   direction?: string | null
   rationale?: string
   uncertainty?: number
+  confidence?: number
+  confidence_factors?: string[]
+  robust_z?: number
   rule_version?: string
   memory_context?: MemoryContext[]
   evidence?: Array<{ ref?: string; timestamp?: string | number | null; source?: string }>
