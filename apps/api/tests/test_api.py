@@ -443,6 +443,7 @@ def test_configured_redis_rate_limit_is_shared_and_fails_closed(monkeypatch):
 
 def run_python(code, **env_overrides):
     env = os.environ.copy()
+    env.setdefault("DATABASE_URL", "")  # never reach a developer's local database from tests
     env.update(env_overrides)
     return subprocess.run([sys.executable, "-c", code], cwd=API_DIR, env=env, capture_output=True, text=True, timeout=30)
 
