@@ -725,6 +725,6 @@ def test_live_tatum_mainnet_analysis():
 
 def test_render_external_hostname_is_trusted_automatically():
     from app.core.config import Settings
-    settings = Settings(_env_file=None, ALLOWED_HOSTS="api.example.com", RENDER_EXTERNAL_HOSTNAME="Trace-YM2M.onrender.com")
-    assert settings.allowed_hosts == ["api.example.com", "trace-ym2m.onrender.com"]
+    settings = Settings(_env_file=None, ALLOWED_HOSTS="api.example.com", RENDER_EXTERNAL_HOSTNAME="My-Service.onrender.com")
+    assert settings.allowed_hosts == ["api.example.com", "my-service.onrender.com"]
     assert Settings(_env_file=None, ALLOWED_HOSTS="api.example.com").allowed_hosts == ["api.example.com"]
