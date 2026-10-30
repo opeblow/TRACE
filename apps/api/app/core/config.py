@@ -80,7 +80,14 @@ class Settings(BaseSettings):
         """DATABASE_URL in the form asyncpg accepts (drops SQLAlchemy driver suffixes such as +asyncpg)."""
         url = self.DATABASE_URL.strip()
         scheme, sep, rest = url.partition("://")
-        return f"{scheme.split('+', 1)[0]}{sep}{rest}" if sep else url
+        if not sep:
+            return url
+        base, qmark, query = rest.partition("?")
+        if qmark:
+            # libpq-only options that asyncpg would send to the server as settings (Neon adds channel_binding).
+            kept = [p for p in query.split("&") if p and p.split("=", 1)[0] not in ("channel_binding", "gssencmode")]
+            base = f"{base}?{'&'.join(kept)}" if kept else base
+        return f"{scheme.split('+', 1)[0]}://{base}"
 
     @property
     def cors_origins(self) -> list[str]:
