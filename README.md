@@ -19,7 +19,8 @@ TRACE reads a wallet's recent Sui Mainnet activity through Tatum, flags statisti
 [![Tatum](https://img.shields.io/badge/data-Tatum%20Sui%20gRPC-6E3CF0)](https://docs.tatum.io/reference/rpc-sui)
 [![Walrus Memory](https://img.shields.io/badge/memory-Walrus%20Memory-1F8A70)](https://docs.wal.app/walrus-memory/python-sdk/usage/memwal)
 
-[![API tests](https://img.shields.io/badge/API%20tests-103%20passing-2EA44F)](docs/TEST_REPORT.md)
+[![API tests](https://img.shields.io/badge/API%20tests-113%20passing-2EA44F)](docs/TEST_REPORT.md)
+[![Browser tests](https://img.shields.io/badge/browser%20tests-14%20passing-2EA44F)](apps/web/e2e/app.spec.ts)
 [![Vulnerabilities](https://img.shields.io/badge/known%20vulnerabilities-0-2EA44F)](docs/TEST_REPORT.md)
 [![Mobile](https://img.shields.io/badge/mobile-320px%2B-2EA44F)](docs/TEST_REPORT.md)
 [![Read-only](https://img.shields.io/badge/wallet%20access-read--only-17231F)](#security-and-privacy)
@@ -44,10 +45,11 @@ Wallet explorers show raw transactions. They don't tell you which ones are unusu
 
 | Area | What it does |
 |---|---|
-| Wallet analysis | Validates the address, verifies the provider is on Sui Mainnet, and reads the native SUI balance and the 50 most recent transactions through Tatum's Sui gRPC interface. All amounts use exact decimal arithmetic. |
+| Wallet analysis | Validates the address, verifies the provider is on Sui Mainnet, and reads the native SUI balance and up to 150 of the most recent transactions through Tatum's Sui gRPC interface, paging with the provider's cursor (50 per page) and never counting a transaction twice. All amounts use exact decimal arithmetic. |
 | Anomaly detection | Rule `amount-outlier-v2`: separate median + MAD baselines for incoming and outgoing transfers, with gas-only and failed transactions excluded and the sender's gas fee removed from transfer amounts. Severity comes from robust z-score bands (medium at 4, high at 12). Each finding carries a confidence score with the factors behind it, plus uncertainty, counterparty and evidence. Large amounts are never labelled malicious. |
 | Learning loop | Label a counterparty or mark an alert expected, needing review, or incorrect. The write is confirmed only after the Walrus job completes, and TRACE records which workspace owns each job so no other workspace can poll it. Re-analysis then shows "Memory changed this: high → medium" with provenance. |
 | Investigation history | Each analysis run with a workspace is saved to PostgreSQL: wallet, time, network checkpoint, baseline, and every finding with its severity, confidence and rule version. The Analyze page lists recent investigations, and `GET /alerts` returns the workspace's finding history. History can be deleted in one confirmed request. |
+| Operational metrics | `GET /metrics` in Prometheus format: requests by route and status, latency histograms, analysis outcomes, provider failures, memory recall status and history saves. Labels never contain addresses or workspace keys. Requires a bearer token (`METRICS_TOKEN`) and is hidden in production without one. |
 | Compare | One toggle switches between the result with memory and the same chain facts without memory. |
 | Memory Centre | Lists every saved memory with type, date, source, and Walrus blob. You can move your workspace to another device or delete everything after a confirmation that explains what deletion cannot erase. |
 | Resilience | Retries with backoff and jitter, timeouts, response-size caps, and an honest stateless mode when memory is unreachable. A partial-history indicator shows when data is incomplete. |
@@ -177,6 +179,7 @@ All secrets are server-side. The web build takes only `NEXT_PUBLIC_API_URL`.
 | `MEMWAL_SERVER_URL` | no | Defaults to `https://relayer.memory.walrus.xyz` |
 | `MEMWAL_NAMESPACE_PREFIX` | production | For example `trace-prod`. Must differ from the development prefix. |
 | `ANALYSIS_RATE_LIMIT` / `ANALYSIS_RATE_WINDOW_SECONDS` | no | Defaults to 10 requests per 60 s per client |
+| `METRICS_TOKEN` | no | Bearer token for `GET /metrics`. Without it, `/metrics` is hidden in production. |
 | `ENABLE_API_DOCS` | no | `false` by default in production, which hides `/docs` and `/openapi.json` |
 | `LOG_FORMAT` | no | `auto` (JSON in production), `json`, or `text` |
 
@@ -207,24 +210,32 @@ The full checklist is in [infra/deployment/README.md](infra/deployment/README.md
 
 ## Testing
 
-Latest full run (2026-10-30, Python 3.12, PostgreSQL 16): **104 tests collected, 103 passed, 1 skipped, 0 failed.** The skipped test calls real Tatum Mainnet and runs only with `TRACE_LIVE_TESTS=1`.
+Latest runs (2026-10-30):
+
+| Suite | Result |
+|---|---|
+| API (Python 3.12, PostgreSQL 16) | **113 collected, 113 passed, 0 failed.** 112 run offline; the live Tatum Mainnet test (`TRACE_LIVE_TESTS=1`) was run separately and passed. |
+| Browser (Playwright, Chromium) | **14 passed, 0 failed:** 7 tests, each on desktop and mobile viewports. |
 
 ```bash
 cd apps/api
-TRACE_ENV=development python -m pytest -q                                   # without a database: 102 passed, 2 skipped
-TRACE_TEST_DATABASE_URL=postgresql://user:pass@localhost:5432/trace_test TRACE_ENV=development python -m pytest -q                                   # with PostgreSQL: 103 passed, 1 skipped
+TRACE_ENV=development python -m pytest -q                                   # without a database: 111 passed, 2 skipped
+TRACE_TEST_DATABASE_URL=postgresql://user:pass@localhost:5432/trace_test TRACE_ENV=development python -m pytest -q                                   # with PostgreSQL: 112 passed, 1 skipped
 TRACE_ENV=development TRACE_LIVE_TESTS=1 python -m pytest -q                # also calls live Tatum Mainnet
 python scripts/memory_demo.py                                               # live Walrus learning-loop evidence
 
 npm run lint && npm run build                                               # web type-check and static build
+NEXT_PUBLIC_API_URL=http://api.test npm run build && npm run test:e2e -w apps/web   # browser tests (API mocked)
 ```
 
-Use a disposable database for `TRACE_TEST_DATABASE_URL`: the test creates and deletes rows. CI starts a PostgreSQL 16 service, so every push runs all 103 offline tests.
+Use a disposable database for `TRACE_TEST_DATABASE_URL`: the test creates and deletes rows. CI starts a PostgreSQL 16 service, so every push runs all 112 offline API tests and the 14 browser tests.
 
 | File | Tests | Covers |
 |---|---|---|
-| `tests/test_api.py` | 59 | Anomaly rule v2 (gas-only exclusion, separate in/out baselines, zero-MAD floor, severity bands, confidence), activity normalization, Tatum gRPC contract against the real Sui schema, retries and redaction, address validation, exact decimals, rate limits and body caps, CORS and trusted hosts, production startup guards, live Mainnet (opt-in) |
+| `tests/test_api.py` | 63 | Cursor pagination (pages, end of history, duplicate boundaries, missing cursor), anomaly rule v2 (gas-only exclusion, separate in/out baselines, zero-MAD floor, severity bands, confidence), activity normalization, Tatum gRPC contract against the real Sui schema, retries and redaction, address validation, exact decimals, rate limits and body caps, CORS and trusted hosts, production startup guards, live Mainnet (opt-in) |
 | `tests/test_memory.py` | 29 | The learning-loop acceptance test, consent, secret rejection, tampered-record rejection, workspace isolation, outage fallback, deletion |
+| `tests/test_metrics.py` | 5 | Metrics token enforcement, hidden in production without a token, route-template labels with no addresses or workspace keys, outcome and provider-failure counters |
+| `apps/web/e2e/app.spec.ts` | 7 × 2 viewports | Landing hero and address validation, keyboard FAQ, recent investigations with loading, empty and error states, a full analysis showing evidence and confidence, provider errors shown with a reference, no sideways scrolling on any page |
 | `tests/test_persistence.py` | 16 | Investigation history and its workspace isolation, job ownership when the provider omits the namespace, ownership across restarts, 20 concurrent writes, duplicate recall, failed jobs, structured errors that never echo input, PostgreSQL migrations, transactions and cascades |
 
 CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs these tests with PostgreSQL, pip-audit, the web type-check, build and npm audit, the container build, and a gitleaks secret scan. The latest local `pip-audit` and `npm audit` runs found no known vulnerabilities.
