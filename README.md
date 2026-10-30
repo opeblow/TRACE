@@ -2,6 +2,8 @@
 
 # TRACE
 
+### Tatum x Walrus Memory Hackathon &nbsp;|&nbsp; Track: Consumer Finance Apps
+
 **Sui wallet intelligence that remembers what you confirm.**
 
 TRACE reads a wallet's recent Sui Mainnet activity through Tatum, flags statistically unusual movements with on-chain evidence, and learns from your labels and alert feedback through Walrus Memory. Later analyses change in ways you can see and verify.
