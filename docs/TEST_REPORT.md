@@ -101,12 +101,17 @@ Isolation is a deliberate **demo-mode boundary**, as the PRD allows (§4 "authen
 
 ## Analysis-quality note
 
+**Fixed in `amount-outlier-v2`.** Gas-only transactions are now identified from Tatum's reported gas fee and excluded, and incoming and outgoing transfers have separate baselines. Regression tests: `test_gas_only_transactions_do_not_distort_the_baseline`, `test_incoming_and_outgoing_have_separate_baselines`.
+
+Original observation:
+
 On wallet `0x7d3f…cf72`, all 10 findings are "high". Most of its transactions are gas-only movements (~0.0018 SUI), so the median/MAD baseline is near zero and every real transfer exceeds it. Recommended next rule version: exclude gas-only transactions (or the sender's gas cost) from the baseline, and baseline inflows and outflows separately.
 
 ## Housekeeping
 
 - Two test memories from aborted browser runs remain in an unreachable workspace (its key was not kept); it is never recalled by anyone.
-- `TRACE_ENV=production` still refuses to start, by design. `render.yaml` sets production, so a Render deploy will not boot until that decision changes.
+- **Production startup (fixed 2026-10-30).** The code no longer refuses production. The remaining failure was `ALLOWED_HOSTS=trace-api.onrender.com` in `render.yaml`, while the service runs at `trace-ym2m.onrender.com`, so every request got "Invalid host header". The API now trusts Render's `RENDER_EXTERNAL_HOSTNAME` automatically. Verified locally: production boots, `/ready` returns 200 on the Render host, and other hosts are still rejected.
+- **Test count (re-run 2026-10-30):** 86 passed, 1 skipped (live Tatum test, opt-in). Earlier figures of 74 and 77 were from older states of the suite. The browser counts above came from runs outside this repository; no browser suite is committed.
 - The root `.env.local` holds Tatum keys and the Walrus private key. It is git-ignored and not read by the web build, but keep secrets only in `apps/api/.env`.
 - `apps/api/pyproject.toml` lists dependencies the app doesn't use (jose, passlib, sqlalchemy…) that disagree with `requirements.txt`.
 - `atlas.db` at the repo root is an empty SQLite file with unrelated tables (`deadlines`, `mcp_tool_calls`…). It looks like a leftover.
