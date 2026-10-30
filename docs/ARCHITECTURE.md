@@ -65,7 +65,7 @@ The schema is vendored in `apps/api/app/services/sui_rpc_v2.binpb`. Refresh it w
 
 ## Not implemented
 
-User accounts and authentication, activity pagination beyond the 50 most recent transactions, and LLM explanations. Production rate limiting requires Redis and fails closed.
+User accounts and authentication, history beyond the 150 most recent transactions, and LLM explanations. Production rate limiting requires Redis and fails closed.
 
 ## Persistence
 
