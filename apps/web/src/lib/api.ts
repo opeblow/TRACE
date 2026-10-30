@@ -1,4 +1,4 @@
-﻿import axios from 'axios'
+import axios from 'axios'
 import { getWorkspace } from './workspace'
 import type { AnalysisResult, JobStatus } from './types'
 
@@ -79,4 +79,18 @@ export const getMemories = async (wallet?: string) => {
 export const forgetAllMemories = async () => {
   const response = await api.delete('/api/v1/memories', { data: { confirm: 'DELETE' } })
   return response.data as { deleted: number; message: string }
+}
+
+export type InvestigationSummary = {
+  investigation_id: string
+  address: string
+  created_at: string
+  anomaly_count: number
+  highest_severity: 'low' | 'medium' | 'high' | null
+  status: string
+}
+
+export const listInvestigations = async (): Promise<{ durable: boolean; investigations: InvestigationSummary[] }> => {
+  const response = await api.get('/api/v1/investigations', { params: { limit: 10 } })
+  return response.data
 }
